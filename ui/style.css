@@ -841,6 +841,14 @@ progress {
   color: #75849a;
   padding: 9px;
 }
+.graph-toolbar select {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: white;
+  padding: 8px;
+  font: inherit;
+  font-size: 12px;
+}
 .graph-title {
   border-left: 1px solid var(--border);
   padding-left: 25px;

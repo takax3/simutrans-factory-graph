@@ -116,9 +116,25 @@ try {
   await page.getByRole('button', { name: '表示中のノードを全体表示' }).click();
   await expect(page.getByText('循環参照・展開停止')).toBeVisible();
   await page.screenshot({ path: `${output}/04-cycle.png` });
+  await page.getByRole('button', { name: '起点変更', exact: true }).click();
+  await page.getByRole('tab', { name: /産業/ }).click();
+  await page.getByRole('textbox', { name: '名前で検索' }).fill('bento_plant');
+  await page.locator('.object-row').click();
+  await page.getByRole('button', { name: 'この産業から表示' }).click();
+  await page.getByRole('combobox', { name: '探索方向' }).selectOption('downstream');
+  await expect(page.locator('.canvas-caption')).toContainText('2 / 1,000');
+  const outputGoods = page.locator('.react-flow__node').filter({ hasText: 'bento12' });
+  await expect(outputGoods).toContainText('消費産業');
+  await outputGoods.locator('.entity-main').click();
+  await page.getByRole('button', { name: '表示中のノードを全体表示' }).click();
+  await expect(page.locator('.react-flow__node').filter({ hasText: 'supermarket' })).toBeVisible();
+  await outputGoods.locator('.entity-main').click();
+  await expect(page.locator('.canvas-caption')).toContainText('2 / 1,000');
+  await page.getByRole('combobox', { name: '探索方向' }).selectOption('upstream');
+  await expect(page.locator('.canvas-caption')).toContainText('4 / 1,000');
   assertNoErrors();
   console.log(
-    'Native smoke PASS: embedded UI, real IPC, Japan import, Japanese search, expansion/collapse, goods root and cycle stop.',
+    'Native smoke PASS: embedded UI, real IPC, Japan import, Japanese search, upstream/downstream expansion/collapse, direction switching, goods root and cycle stop.',
   );
   console.log(`Screenshots: ${output}`);
 } finally {

@@ -9,6 +9,46 @@ import {
 import { goods, industry, testGraph } from './fixtures';
 
 describe('upstream exploration', () => {
+  it('follows outputs and consumers downstream, retaining shared branches and cycle stops', () => {
+    const graph = testGraph();
+    const root = 'industry:plant';
+    expect(dependencies(graph, root, 'downstream')).toEqual(['goods:food', 'goods:milk']);
+    expect(dependencies(graph, 'goods:grain', 'downstream')).toEqual([root]);
+    expect(
+      visibleTree(graph, root, initialExpanded(graph, root, 'downstream'), 1000, 'downstream').map(
+        (n) => n.objectId,
+      ),
+    ).toEqual([root, 'goods:food', 'goods:milk']);
+    let expanded = new Set(['root', 'root/0', 'root/1']);
+    let nodes = visibleTree(graph, root, expanded, 1000, 'downstream');
+    expect(
+      nodes.filter((n) => n.objectId === 'industry:store').every((n) => n.shared && !n.cycle),
+    ).toBe(true);
+    expanded = toggleExpansion(
+      graph,
+      root,
+      expanded,
+      nodes.find((n) => n.id === 'root/0')!,
+      'downstream',
+    );
+    expect(visibleTree(graph, root, expanded, 1000, 'downstream').map((n) => n.id)).toContain(
+      'root/1/0',
+    );
+    expect(expanded.has('root/0')).toBe(false);
+    graph.goods['goods:milk'].consumers = [root];
+    nodes = visibleTree(graph, root, expanded, 1000, 'downstream');
+    const cycle = nodes.find((n) => n.id === 'root/1/0')!;
+    expect(cycle.cycle).toBe(true);
+    expect(toggleExpansion(graph, root, expanded, cycle, 'downstream')).toEqual(expanded);
+  });
+  it('applies the node limit to downstream consumers', () => {
+    const graph = testGraph();
+    graph.goods['goods:grain'].consumers = Array.from({ length: 1000 }, (_, i) => `industry:${i}`);
+    expect(initialExpanded(graph, 'goods:grain', 'downstream').size).toBe(0);
+    expect(() => visibleTree(graph, 'goods:grain', new Set(['root']), 1000, 'downstream')).toThrow(
+      '1,000',
+    );
+  });
   it('initially opens only one level and works from goods', () => {
     const graph = testGraph();
     const nodes = visibleTree(graph, 'industry:store', initialExpanded(graph, 'industry:store'));

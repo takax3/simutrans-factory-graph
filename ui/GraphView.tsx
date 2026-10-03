@@ -24,6 +24,7 @@ import {
   toggleExpansion,
   visibleTree,
   type Occurrence,
+  type Direction,
 } from './exploration';
 
 type GraphNode = Node<{
@@ -35,6 +36,7 @@ type GraphNode = Node<{
   unresolved: boolean;
   expanded: boolean;
   childCount: number;
+  direction: Direction;
   toggle: () => void;
 }>;
 
@@ -75,10 +77,18 @@ function EntityNode({ data }: NodeProps<GraphNode>) {
             {data.expanded ? <Minus size={13} /> : <Plus size={13} />}
             {data.expanded
               ? '折り畳む'
-              : `${data.industry ? '要求貨物' : '生産産業'} ${data.childCount} 件を展開`}
+              : `${data.direction === 'downstream' ? (data.industry ? '生産貨物' : '消費産業') : data.industry ? '要求貨物' : '生産産業'} ${data.childCount} 件を展開`}
           </button>
         ) : (
-          <span>{data.industry ? '原料を必要としない産業' : '生産する産業なし'}</span>
+          <span>
+            {data.direction === 'downstream'
+              ? data.industry
+                ? '生産する貨物なし'
+                : '消費する産業なし'
+              : data.industry
+                ? '原料を必要としない産業'
+                : '生産する産業なし'}
+          </span>
         )}
       </div>
       <Handle type="source" position={Position.Bottom} isConnectable={false} />
@@ -106,21 +116,32 @@ function layout(occurrences: Occurrence[]) {
   );
 }
 
-function Explorer({ graph, root }: { graph: IndustryGraph; root: string }) {
-  const [expanded, setExpanded] = useState(() => initialExpanded(graph, root));
+function Explorer({
+  graph,
+  root,
+  direction,
+}: {
+  graph: IndustryGraph;
+  root: string;
+  direction: Direction;
+}) {
+  const [expanded, setExpanded] = useState(() => initialExpanded(graph, root, direction));
   const [message, setMessage] = useState(() =>
-    dependencies(graph, root).length >= NODE_LIMIT
+    dependencies(graph, root, direction).length >= NODE_LIMIT
       ? '起点の依存先が表示上限を超えるため、起点だけを表示しています。'
       : '',
   );
   const flow = useReactFlow<GraphNode>();
-  const occurrences = useMemo(() => visibleTree(graph, root, expanded), [graph, root, expanded]);
+  const occurrences = useMemo(
+    () => visibleTree(graph, root, expanded, NODE_LIMIT, direction),
+    [graph, root, expanded, direction],
+  );
   const positions = useMemo(() => layout(occurrences), [occurrences]);
   const toggle = useCallback(
     (node: Occurrence) => {
       try {
-        const next = toggleExpansion(graph, root, expanded, node);
-        const nextPositions = layout(visibleTree(graph, root, next));
+        const next = toggleExpansion(graph, root, expanded, node, direction);
+        const nextPositions = layout(visibleTree(graph, root, next, NODE_LIMIT, direction));
         const before = positions.get(node.id),
           after = nextPositions.get(node.id);
         const viewport = flow.getViewport();
@@ -136,7 +157,7 @@ function Explorer({ graph, root }: { graph: IndustryGraph; root: string }) {
         setMessage(e instanceof Error ? e.message : String(e));
       }
     },
-    [graph, root, expanded, positions, flow],
+    [graph, root, expanded, direction, positions, flow],
   );
   const nodes: GraphNode[] = occurrences.map((n) => {
     const object = lookup(graph, n.objectId)!;
@@ -152,7 +173,8 @@ function Explorer({ graph, root }: { graph: IndustryGraph; root: string }) {
         shared: n.shared,
         unresolved: graph.goods[n.objectId]?.unresolved ?? false,
         expanded: expanded.has(n.id),
-        childCount: dependencies(graph, n.objectId).length,
+        childCount: dependencies(graph, n.objectId, direction).length,
+        direction,
         toggle: () => toggle(n),
       },
     };
@@ -194,7 +216,7 @@ function Explorer({ graph, root }: { graph: IndustryGraph; root: string }) {
         </ReactFlow>
       </div>
       <div className="canvas-top">
-        <span>クリックして上流へ展開</span>
+        <span>クリックして{direction === 'downstream' ? '下流' : '上流'}へ展開</span>
         <button
           className="secondary"
           onClick={() => {
@@ -218,12 +240,18 @@ function Explorer({ graph, root }: { graph: IndustryGraph; root: string }) {
       )}
       <div className="canvas-caption">
         {occurrences.length.toLocaleString()} / {NODE_LIMIT.toLocaleString()} ノード
-        <span>線は依存を辿る方向です</span>
+        <span>
+          {direction === 'downstream' ? '線は生産・消費先を辿る方向です' : '線は依存を辿る方向です'}
+        </span>
       </div>
     </div>
   );
 }
-export default function GraphView(props: { graph: IndustryGraph; root: string }) {
+export default function GraphView(props: {
+  graph: IndustryGraph;
+  root: string;
+  direction: Direction;
+}) {
   return (
     <ReactFlowProvider>
       <Explorer {...props} />
