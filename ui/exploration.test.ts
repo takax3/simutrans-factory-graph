@@ -56,24 +56,24 @@ describe('bidirectional exploration', () => {
       true,
     );
   });
-  it('can expand either direction on a non-root node and stops ancestor cycles', () => {
+  it('restricts every branch to its original direction, including injected expansion state', () => {
     const graph = testGraph();
     let expanded = initialExpanded(graph, 'industry:plant');
     let nodes = visibleTree(graph, 'industry:plant', expanded);
     const grain = nodes.find((n) => n.id === 'root/u0')!;
-    expanded = toggleExpansion(graph, 'industry:plant', expanded, grain, 'upstream');
-    expanded = toggleExpansion(graph, 'industry:plant', expanded, grain, 'downstream');
-    nodes = visibleTree(graph, 'industry:plant', expanded);
-    expect(nodes.find((n) => n.id === 'root/u0/u0')?.objectId).toBe('industry:farm');
-    const cycle = nodes.find((n) => n.id === 'root/u0/d0')!;
-    expect(cycle.cycle).toBe(true);
-    expect(toggleExpansion(graph, 'industry:plant', expanded, cycle, 'downstream')).toEqual(
+    const food = nodes.find((n) => n.id === 'root/d0')!;
+    expect(toggleExpansion(graph, 'industry:plant', expanded, grain, 'downstream')).toEqual(
       expanded,
     );
+    expect(toggleExpansion(graph, 'industry:plant', expanded, food, 'upstream')).toEqual(expanded);
     expanded = toggleExpansion(graph, 'industry:plant', expanded, grain, 'upstream');
-    expect(visibleTree(graph, 'industry:plant', expanded).some((n) => n.id === 'root/u0/d0')).toBe(
-      true,
-    );
+    expanded = toggleExpansion(graph, 'industry:plant', expanded, food, 'downstream');
+    expanded.add('root/u0:downstream');
+    expanded.add('root/d0:upstream');
+    nodes = visibleTree(graph, 'industry:plant', expanded);
+    expect(nodes.find((n) => n.id === 'root/u0/u0')?.objectId).toBe('industry:farm');
+    expect(nodes.find((n) => n.id === 'root/d0/d0')?.objectId).toBe('industry:store');
+    expect(nodes.some((n) => n.id === 'root/u0/d0' || n.id === 'root/d0/u0')).toBe(false);
   });
   it('stops multi-industry cycles downstream', () => {
     const graph = testGraph();
@@ -102,10 +102,10 @@ describe('bidirectional exploration', () => {
     let nodes = visibleTree(graph, 'industry:store', expanded);
     expect(nodes).toHaveLength(1000);
     const milk = nodes.find((n) => n.objectId === 'goods:milk')!;
-    expect(() => toggleExpansion(graph, 'industry:store', expanded, milk, 'downstream')).toThrow(
+    expect(() => toggleExpansion(graph, 'industry:store', expanded, milk, 'upstream')).toThrow(
       '1,000',
     );
-    expect(expanded.has(expansionKey(milk.id, 'downstream'))).toBe(false);
+    expect(expanded.has(expansionKey(milk.id, 'upstream'))).toBe(false);
     expanded = toggleExpansion(
       graph,
       'industry:store',
@@ -114,7 +114,7 @@ describe('bidirectional exploration', () => {
       'upstream',
     );
     expect(() =>
-      toggleExpansion(graph, 'industry:store', expanded, milk, 'downstream'),
+      toggleExpansion(graph, 'industry:store', expanded, milk, 'upstream'),
     ).not.toThrow();
   });
   it('keeps oversized initial roots within the combined limit', () => {

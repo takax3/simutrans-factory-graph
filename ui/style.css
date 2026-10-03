@@ -919,7 +919,9 @@ progress {
 }
 .entity-node {
   width: 242px;
-  height: 136px;
+  height: 190px;
+  display: flex;
+  flex-direction: column;
   background: white;
   border: 1px solid #c4d5ec;
   border-radius: 9px;
@@ -932,7 +934,8 @@ progress {
   width: 100%;
   text-align: left;
   border-radius: 8px 8px 0 0;
-  height: 114px;
+  flex: 1;
+  min-height: 0;
 }
 .entity-main:disabled {
   opacity: 1;
@@ -973,6 +976,8 @@ progress {
 }
 .entity-bottom {
   height: 35px;
+  flex-shrink: 0;
+  overflow: hidden;
   border-top: 1px solid #e7edf5;
   background: #f7f9fd;
   border-radius: 0 0 8px 8px;

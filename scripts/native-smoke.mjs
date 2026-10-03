@@ -127,6 +127,9 @@ try {
   const rootNode = page.locator('[data-id="root"]');
   const upstreamNode = page.locator('[data-id="root/u0"]');
   const downstreamNode = page.locator('[data-id="root/d0"]');
+  await expect(rootNode.getByRole('button')).toHaveCount(2);
+  await expect(upstreamNode.getByRole('button', { name: /の下流を/ })).toHaveCount(0);
+  await expect(downstreamNode.getByRole('button', { name: /の上流を/ })).toHaveCount(0);
   await page.getByRole('button', { name: '表示中のノードを全体表示' }).click();
   const rootBox = await rootNode.boundingBox();
   expect((await upstreamNode.boundingBox()).y).toBeLessThan(rootBox.y);
@@ -147,9 +150,29 @@ try {
     (await upstreamNode.boundingBox()).y,
   );
   await page.screenshot({ path: output + '/05-bidirectional.png' });
+  const overflowingButtons = await page.locator('.entity-node').evaluateAll((nodes) =>
+    nodes.flatMap((node) => {
+      const box = node.getBoundingClientRect();
+      return [...node.querySelectorAll('button')]
+        .filter((button) => {
+          const rect = button.getBoundingClientRect();
+          return (
+            rect.top < box.top - 0.5 ||
+            rect.bottom > box.bottom + 0.5 ||
+            rect.left < box.left - 0.5 ||
+            rect.right > box.right + 0.5
+          );
+        })
+        .map((button) => button.getAttribute('aria-label'));
+    }),
+  );
+  expect(overflowingButtons).toEqual([]);
+  await page.getByRole('button', { name: '起点へ戻る' }).click();
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: output + '/06-root-controls.png' });
   assertNoErrors();
   console.log(
-    'Native smoke PASS: embedded UI, real IPC, Japan import, Japanese search, simultaneous upstream/downstream expansion, independent collapse, vertical layout and highlighted root, goods root and cycle stop.',
+    'Native smoke PASS: embedded UI, real IPC, Japan import, Japanese search, directional trees, independent collapse, vertical layout, contained buttons and highlighted root, goods root and cycle stop.',
   );
   console.log(`Screenshots: ${output}`);
 } finally {

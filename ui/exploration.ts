@@ -11,6 +11,9 @@ export interface Occurrence {
   cycle: boolean;
   shared: boolean;
 }
+export function expansionDirections(node: Pick<Occurrence, 'direction'>): readonly Direction[] {
+  return node.direction ? [node.direction] : ['upstream', 'downstream'];
+}
 export function lookup(graph: IndustryGraph, id: string): BaseObject | undefined {
   return graph.industries[id] ?? graph.goods[id];
 }
@@ -40,7 +43,7 @@ export function visibleTree(
     const current = queue[index];
     nodes.push(current);
     counts.set(current.objectId, (counts.get(current.objectId) ?? 0) + 1);
-    for (const direction of ['upstream', 'downstream'] as const) {
+    for (const direction of expansionDirections(current)) {
       if (!current.cycle && expanded.has(expansionKey(current.id, direction))) {
         const ancestors = [...current.ancestors, current.objectId];
         dependencies(graph, current.objectId, direction).forEach((objectId, child) => {
@@ -88,7 +91,12 @@ export function toggleExpansion(
   direction: Direction = 'upstream',
 ): Set<string> {
   const next = new Set(expanded);
-  if (node.cycle || !dependencies(graph, node.objectId, direction).length) return next;
+  if (
+    !expansionDirections(node).includes(direction) ||
+    node.cycle ||
+    !dependencies(graph, node.objectId, direction).length
+  )
+    return next;
   const key = expansionKey(node.id, direction);
   if (next.has(key)) {
     next.delete(key);

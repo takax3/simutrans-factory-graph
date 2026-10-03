@@ -18,6 +18,7 @@ import '@xyflow/react/dist/style.css';
 import type { IndustryGraph } from './types';
 import {
   dependencies,
+  expansionDirections,
   expansionKey,
   initialExpanded,
   lookup,
@@ -36,6 +37,7 @@ type GraphNode = Node<{
   shared: boolean;
   unresolved: boolean;
   root: boolean;
+  directions: readonly Direction[];
   expanded: Record<Direction, boolean>;
   childCount: Record<Direction, number>;
   toggle: (direction: Direction) => void;
@@ -84,7 +86,7 @@ function EntityNode({ data }: NodeProps<GraphNode>) {
     >
       <Handle id="top-target" type="target" position={Position.Top} isConnectable={false} />
       <Handle id="top-source" type="source" position={Position.Top} isConnectable={false} />
-      {control('upstream')}
+      {data.directions.includes('upstream') && control('upstream')}
       <div className="entity-main">
         <span className="entity-kind">
           {data.industry ? <Factory size={16} /> : <Box size={16} />}
@@ -107,7 +109,7 @@ function EntityNode({ data }: NodeProps<GraphNode>) {
           </span>
         )}
       </div>
-      {control('downstream')}
+      {data.directions.includes('downstream') && control('downstream')}
       <Handle id="bottom-target" type="target" position={Position.Bottom} isConnectable={false} />
       <Handle id="bottom-source" type="source" position={Position.Bottom} isConnectable={false} />
     </div>
@@ -183,6 +185,7 @@ function Explorer({ graph, root }: { graph: IndustryGraph; root: string }) {
         shared: n.shared,
         unresolved: graph.goods[n.objectId]?.unresolved ?? false,
         root: n.id === 'root',
+        directions: expansionDirections(n),
         expanded: {
           upstream: expanded.has(expansionKey(n.id, 'upstream')),
           downstream: expanded.has(expansionKey(n.id, 'downstream')),
