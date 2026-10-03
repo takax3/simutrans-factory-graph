@@ -127,7 +127,8 @@ try {
   const rootNode = page.locator('[data-id="root"]');
   const upstreamNode = page.locator('[data-id="root/u0"]');
   const downstreamNode = page.locator('[data-id="root/d0"]');
-  await expect(rootNode.getByRole('button')).toHaveCount(2);
+  await expect(rootNode.getByRole('button')).toHaveCount(3);
+  await expect(rootNode.locator('.node-root-button')).toBeDisabled();
   await expect(upstreamNode.getByRole('button', { name: /の下流を/ })).toHaveCount(0);
   await expect(downstreamNode.getByRole('button', { name: /の上流を/ })).toHaveCount(0);
   await page.getByRole('button', { name: '表示中のノードを全体表示' }).click();
@@ -170,9 +171,20 @@ try {
   await page.getByRole('button', { name: '起点へ戻る' }).click();
   await page.waitForTimeout(300);
   await page.screenshot({ path: output + '/06-root-controls.png' });
+  await page.getByRole('button', { name: '表示中のノードを全体表示' }).click();
+  await downstreamNode.locator('.node-root-button').click();
+  await expect(page.locator('[data-id="root"] small')).toHaveText('bento12');
+  await expect(page.locator('[data-id="root/u0"] small')).toHaveText('bento_plant');
+  await expect(page.locator('[data-id="root/d0/d0"]')).toHaveCount(0);
+  await expect(page.locator('.root-node')).toHaveCount(1);
+  await page.locator('[data-id="root/u0"] .node-root-button').click();
+  await expect(page.locator('[data-id="root"] small')).toHaveText('bento_plant');
+  await expect(page.locator('.graph-title strong')).toHaveText('弁当工場');
+  await expect(page.locator('.canvas-caption')).toContainText('5 / 1,000');
+  await page.screenshot({ path: output + '/07-change-root.png' });
   assertNoErrors();
   console.log(
-    'Native smoke PASS: embedded UI, real IPC, Japan import, Japanese search, directional trees, independent collapse, vertical layout, contained buttons and highlighted root, goods root and cycle stop.',
+    'Native smoke PASS: embedded UI, real IPC, Japan import, Japanese search, directional trees, independent collapse, vertical layout, contained buttons, highlighted root, one-click goods/industry root changes and cycle stop.',
   );
   console.log(`Screenshots: ${output}`);
 } finally {

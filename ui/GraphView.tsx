@@ -41,6 +41,7 @@ type GraphNode = Node<{
   expanded: Record<Direction, boolean>;
   childCount: Record<Direction, number>;
   toggle: (direction: Direction) => void;
+  changeRoot: () => void;
 }>;
 
 function EntityNode({ data }: NodeProps<GraphNode>) {
@@ -93,6 +94,16 @@ function EntityNode({ data }: NodeProps<GraphNode>) {
           {data.industry ? '産業' : '貨物'}
           {data.root && <span className="root-label">起点</span>}
           {data.shared && <span className="shared-label">共有</span>}
+          <button
+            className="node-root-button nodrag nopan"
+            onClick={data.changeRoot}
+            disabled={data.root}
+            aria-label={`${data.label}を起点にする`}
+            title={data.root ? '現在の起点です' : 'このノードを起点にして表示し直す'}
+          >
+            <LocateFixed size={12} />
+            {data.root ? '現在の起点' : '起点にする'}
+          </button>
         </span>
         <strong title={data.label}>{data.label}</strong>
         <small title={data.internalName}>{data.internalName}</small>
@@ -139,7 +150,13 @@ function layout(occurrences: Occurrence[]) {
   );
 }
 
-function Explorer({ graph, root }: { graph: IndustryGraph; root: string }) {
+interface GraphViewProps {
+  graph: IndustryGraph;
+  root: string;
+  onRootChange: (objectId: string) => void;
+}
+
+function Explorer({ graph, root, onRootChange }: GraphViewProps) {
   const [expanded, setExpanded] = useState(() => initialExpanded(graph, root));
   const [message, setMessage] = useState(() =>
     dependencies(graph, root).length + dependencies(graph, root, 'downstream').length >= NODE_LIMIT
@@ -195,6 +212,7 @@ function Explorer({ graph, root }: { graph: IndustryGraph; root: string }) {
           downstream: dependencies(graph, n.objectId, 'downstream').length,
         },
         toggle: (direction) => toggle(n, direction),
+        changeRoot: () => onRootChange(n.objectId),
       },
     };
   });
@@ -266,7 +284,7 @@ function Explorer({ graph, root }: { graph: IndustryGraph; root: string }) {
     </div>
   );
 }
-export default function GraphView(props: { graph: IndustryGraph; root: string }) {
+export default function GraphView(props: GraphViewProps) {
   return (
     <ReactFlowProvider>
       <Explorer {...props} />

@@ -13,7 +13,13 @@ vi.mock('./api', () => ({
   listenDrop: vi.fn(),
 }));
 vi.mock('./GraphView', () => ({
-  default: ({ root }: { root: string }) => <div>探索中:{root}</div>,
+  default: ({ root, onRootChange }: { root: string; onRootChange: (id: string) => void }) => (
+    <div>
+      探索中:{root}
+      <button onClick={() => onRootChange('goods:grain')}>小麦を起点にする</button>
+      <button onClick={() => onRootChange('industry:plant')}>食品工場を起点にする</button>
+    </div>
+  ),
 }));
 afterEach(cleanup);
 beforeEach(() => {
@@ -45,6 +51,13 @@ describe('application flow', () => {
     expect(screen.getByText('探索中:industry:store')).toBeInTheDocument();
     expect(screen.queryByRole('combobox', { name: '探索方向' })).not.toBeInTheDocument();
     expect(screen.getByText('上流・下流の産業と貨物')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: '小麦を起点にする' }));
+    expect(screen.getByText('探索中:goods:grain')).toBeInTheDocument();
+    expect(document.querySelector('.graph-title strong')).toHaveTextContent('小麦');
+    fireEvent.click(screen.getByRole('button', { name: '食品工場を起点にする' }));
+    expect(screen.getByText('探索中:industry:plant')).toBeInTheDocument();
+    expect(document.querySelector('.graph-title strong')).toHaveTextContent('食品工場');
+    expect(api.loadSources).toHaveBeenCalledTimes(1);
     fireEvent.click(screen.getByRole('button', { name: '起点変更' }));
     fireEvent.click(screen.getByRole('tab', { name: /貨物/ }));
     fireEvent.change(screen.getByRole('textbox', { name: '名前で検索' }), {

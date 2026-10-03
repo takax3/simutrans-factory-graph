@@ -636,7 +636,12 @@ export default function App() {
               読み込み設定
             </button>
           </div>
-          <GraphView key={root + loadedSources.join('|')} graph={graph} root={root} />
+          <GraphView
+            key={root + loadedSources.join('|')}
+            graph={graph}
+            root={root}
+            onRootChange={setRoot}
+          />
         </div>
       )}
 

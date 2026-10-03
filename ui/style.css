@@ -968,11 +968,30 @@ progress {
 }
 .shared-label {
   font-size: 8px;
-  margin-left: auto;
   background: #f0f3f7;
   color: #8b96a6;
   padding: 1px 5px;
   border-radius: 3px;
+}
+.node-root-button {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  flex-shrink: 0;
+  border: 1px solid #d2dce9;
+  border-radius: 4px;
+  padding: 3px 5px;
+  background: #f7f9fd;
+  color: #476b99;
+  font-size: 9px;
+}
+.node-root-button:hover:not(:disabled) {
+  background: #e9f0fa;
+}
+.node-root-button:disabled {
+  cursor: default;
+  color: #9aa5b2;
 }
 .entity-bottom {
   height: 35px;
