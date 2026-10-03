@@ -13,7 +13,16 @@ import {
   type Edge,
 } from '@xyflow/react';
 import dagre from '@dagrejs/dagre';
-import { Box, Factory, LocateFixed, Minus, Plus, RotateCcw, TriangleAlert } from 'lucide-react';
+import {
+  Box,
+  Copy,
+  Factory,
+  LocateFixed,
+  Minus,
+  Plus,
+  RotateCcw,
+  TriangleAlert,
+} from 'lucide-react';
 import '@xyflow/react/dist/style.css';
 import type { IndustryGraph } from './types';
 import {
@@ -121,7 +130,7 @@ function EntityNode({ data }: NodeProps<GraphNode>) {
             aria-label={`${data.label}の表示名をコピー`}
             title="表示名をコピー"
           >
-            コピー
+            <Copy size={12} />
           </button>
           <strong title={data.label}>{data.label}</strong>
         </div>
@@ -132,7 +141,7 @@ function EntityNode({ data }: NodeProps<GraphNode>) {
             aria-label={`${data.internalName}の内部名をコピー`}
             title="内部名をコピー"
           >
-            コピー
+            <Copy size={12} />
           </button>
           <small title={data.internalName}>{data.internalName}</small>
         </div>
