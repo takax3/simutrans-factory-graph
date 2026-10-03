@@ -1,13 +1,13 @@
 //! Standard PAK format, verified against Simutrans f19fe4c8.
-//! Bodies are borrowed; image bytes are never decoded or copied.
+//! Bodies are borrowed; optional preview extraction copies only selected sprite bodies.
 use crate::model::{Object, SourceRef};
 
 #[derive(Debug)]
-struct Node<'a> {
-    index: usize,
-    tag: &'a [u8],
-    body: &'a [u8],
-    children: Vec<Node<'a>>,
+pub(crate) struct Node<'a> {
+    pub index: usize,
+    pub tag: &'a [u8],
+    pub body: &'a [u8],
+    pub children: Vec<Node<'a>>,
 }
 
 struct Reader<'a> {
@@ -43,12 +43,17 @@ impl<'a> Reader<'a> {
         };
         let body = self.take(len)?;
         let tag = &head[..4];
-        let retain = keep || tag == b"ROOT" || tag == b"FACT" || tag == b"GOOD";
+        let retain = keep || tag == b"ROOT" || tag == b"FACT" || tag == b"GOOD" || tag == b"GRND";
         let mut children = Vec::new();
         for index in 0..count {
             let mut child = self.node(depth + 1, retain && tag != b"ROOT")?;
             child.index = index as usize;
-            if retain && (tag != b"ROOT" || child.tag == b"FACT" || child.tag == b"GOOD") {
+            if retain
+                && (tag != b"ROOT"
+                    || child.tag == b"FACT"
+                    || child.tag == b"GOOD"
+                    || child.tag == b"GRND")
+            {
                 children.push(child);
             }
         }
@@ -127,6 +132,26 @@ fn good_ref(node: &Node, input: bool) -> Result<String, String> {
 }
 
 pub fn parse_pak(bytes: &[u8], source: &SourceRef) -> Result<Vec<Object>, String> {
+    parse_impl(bytes, source, None).map(|p| p.0)
+}
+
+pub(crate) type ParsedAssets = (
+    Vec<Object>,
+    std::collections::BTreeMap<String, crate::preview::ImageSource>,
+    Option<u16>,
+);
+pub(crate) fn parse_pak_assets(
+    bytes: &[u8],
+    source: &SourceRef,
+    budget: &mut usize,
+) -> Result<ParsedAssets, String> {
+    parse_impl(bytes, source, Some(budget))
+}
+fn parse_impl(
+    bytes: &[u8],
+    source: &SourceRef,
+    mut budget: Option<&mut usize>,
+) -> Result<ParsedAssets, String> {
     let header_end = bytes
         .iter()
         .take(4096)
@@ -147,13 +172,21 @@ pub fn parse_pak(bytes: &[u8], source: &SourceRef) -> Result<Vec<Object>, String
     // Individual objects can also be written without a ROOT wrapper.
     let objects = if root.tag == b"ROOT" {
         root.children
-    } else if root.tag == b"FACT" || root.tag == b"GOOD" {
+    } else if root.tag == b"FACT" || root.tag == b"GOOD" || root.tag == b"GRND" {
         vec![root]
     } else {
         Vec::new()
     };
     let mut result = Vec::new();
+    let mut images = std::collections::BTreeMap::new();
+    let mut raster = None;
     for node in &objects {
+        if node.tag == b"GRND" {
+            if name(node).is_ok_and(|n| n == "Outside") {
+                raster = crate::preview::outside_width(node).ok();
+            }
+            continue;
+        }
         let index = node.index;
         let parsed = (|| {
             let (kind, internal_name, v, inputs, outputs) = if node.tag == b"FACT" {
@@ -195,7 +228,19 @@ pub fn parse_pak(bytes: &[u8], source: &SourceRef) -> Result<Vec<Object>, String
                 overridden: Vec::new(),
             })
         })();
-        result.push(parsed.map_err(|e: String| format!("オブジェクト {index}: {e}"))?);
+        let object = parsed.map_err(|e: String| format!("オブジェクト {index}: {e}"))?;
+        if object.kind == "industry" {
+            if let Some(remaining) = budget.as_deref_mut() {
+                images.insert(
+                    format!("{}:{}", object.id, object.source.object_index),
+                    crate::preview::ImageSource {
+                        raster: None,
+                        sprites: crate::preview::extract_building(&node.children[0], remaining),
+                    },
+                );
+            }
+        }
+        result.push(object);
     }
-    Ok(result)
+    Ok((result, images, raster))
 }

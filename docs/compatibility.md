@@ -13,7 +13,7 @@ Simutrans Standardコミット：
 - `descriptor/factory_desc.h` / `descriptor/writer/factory_writer.cc`：Building経由の名前とSupplier／Productの配置。
 - `dataobj/translator.cc`：日本語翻訳ファイル名、UTF-8マーカー、キー／値形式。
 
-公式ソースを参照して必要な読み取り処理を独立実装しています。画像・数量・立地など、今回表示しない属性の意味解釈は行いません。
+公式ソースを参照して必要な読み取り処理を独立実装しています。画像についても固定コミットのimage_reader、building_reader、building_desc、gebaeude、simgraph16、ground_descを参照しています。数量・立地など、表示しない属性の意味解釈は行いません。
 
 ## 対応表
 
@@ -31,7 +31,11 @@ Simutrans Standardコミット：
 | 入力／出力 | FACT子のindex 2以降、FSUP／FPRO先頭XREFのGOOD参照 |
 | 名前文字列 | UTF-8。旧PAKの非UTF-8バイトはLatin-1として保持 |
 | 日本語翻訳 | 各ソースの`text/ja.tab`、`text/ja.*.tab`、`text/*.ja.tab`。UTF-8、BOM／先頭§に対応 |
-| 非対象オブジェクト | 構造を辿って除外。画像本体はデコードしない |
+| 建物画像 | BUIL v5〜8／v10、TILE v2、IMG1／IMG2、IMG v1／v3 |
+| 基準タイル幅 | GRND Outsideの最初の画像幅。ベースPAKからアドオンへ継承 |
+| 合成 | layout 0、season 0、frame 0。背景の高さ別画像と前景をタイル座標・画像オフセットに従って合成 |
+| 色 | 昼間、プレイヤー0の既定色（青／黄）。RGB555、特殊色、RGB343半透明。夜間・発光効果なし |
+| 非対象オブジェクト | 構造を辿って除外。地形はOutside幅だけを参照。CLIは画像をデコードしない |
 
 Standardの読取実装と同様に最上位ノードを1つ読み、その後の余剰バイトは無視します。ROOT配下のFACT／GOODに加え、直接FACT／GOODが置かれる場合も扱います。pak128.Japanの2ファイルにある種別0のトップレベルノードは関連オブジェクトなしとして扱います。
 
@@ -61,6 +65,10 @@ FACT／GOODの未知バージョンやExtended形式はエラーとしてそのP
 アーカイブ以外に、ファイル名とPAK内容を連結したSHA256も `pakset-baselines.json` で固定しています。`scripts/verify-paksets.mjs` は件数・関係の相互整合性・ハッシュを確認します。
 
 ## 元の定義との照合
+
+画像回帰確認ではJapan 120.0の48産業、pak64 124.3の40産業すべてからPNGを生成でき、画像エラー0件を確認しています。Japanの旧IMG v1では、切り詰められた画像幅の外側にゼロ長の終端ランを持つデータがあり、公式リーダーと同じく許容します。画素の書き込み範囲は別途検証します。
+
+`cargo run -p pak-core --example preview_probe -- OUTPUT_DIRECTORY SOURCE_DIRECTORY...` で開発用にPNGと件数・寸法レポートを生成できます。出力には `.reference/previews` などGit対象外のディレクトリを指定してください。人工画像でタイル配置・階層・前景・色・透明余白のピクセル比較を行い、実PAKの弁当工場・製鉄所なども合成画像を目視確認しています。ゲームを起動した画面との直接比較は未実施です。
 
 公開されている日本版ソースは120.0と同版ではなく112.0です。この違いを前提に、120.0と同じ入出力を持つ代表8産業を照合しました。全産業が112.0の定義に一致すると主張するものではありません。
 

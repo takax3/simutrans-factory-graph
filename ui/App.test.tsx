@@ -103,13 +103,22 @@ describe('application flow', () => {
     await act(async () => {
       onProgress({ completed: 1, total: 2, file: 'test.pak' });
     });
-    expect(screen.getByText('1 / 2 ファイル')).toBeInTheDocument();
+    expect(screen.getByText('PAK解析 1 / 2 ファイル')).toBeInTheDocument();
+    await act(async () => {
+      onProgress({ stage: 'images', completed: 1, total: 3, file: 'factory.pak' });
+    });
+    expect(screen.getByText('産業画像生成 1 / 3 産業')).toBeInTheDocument();
     await act(async () => {
       complete(testReport());
     });
     expect(api.loadSources).toHaveBeenCalledTimes(1);
   });
   it('preserves previous valid data after a failed reload and shows empty results', async () => {
+    const previousImage = { data_url: 'data:image/png;base64,previous', width: 4, height: 1 };
+    vi.mocked(api.loadSources).mockResolvedValue({
+      ...testReport(),
+      previews: { 'industry:store': previousImage },
+    });
     render(<App />);
     await addAndLoad();
     vi.mocked(api.loadSources).mockResolvedValue({
@@ -132,6 +141,14 @@ describe('application flow', () => {
     await screen.findByText('PAKが破損しています');
     expect(screen.getByRole('alert')).toHaveTextContent('利用できる産業・貨物がありません');
     fireEvent.click(screen.getByRole('button', { name: '前回の解析結果を開く' }));
+    fireEvent.change(screen.getByRole('textbox', { name: '名前で検索' }), {
+      target: { value: 'store' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /デパート\s*store/ }));
+    expect(screen.getByRole('img', { name: 'デパートの建物画像' })).toHaveAttribute(
+      'src',
+      previousImage.data_url,
+    );
     fireEvent.change(screen.getByRole('textbox', { name: '名前で検索' }), {
       target: { value: '見つからない名前' },
     });

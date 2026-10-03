@@ -1,5 +1,7 @@
 pub mod model;
 pub mod parser;
+pub mod preview;
+pub use preview::{render_industry_preview, ImageError, PreviewImage};
 pub mod translation;
 
 use model::*;
@@ -49,6 +51,20 @@ pub fn load_sources(paths: &[PathBuf]) -> LoadReport<PakRegistry> {
 
 pub fn load_sources_with_progress(
     paths: &[PathBuf],
+    progress: impl FnMut(Progress),
+) -> LoadReport<PakRegistry> {
+    load_impl(paths, false, progress)
+}
+
+pub fn load_sources_with_images_and_progress(
+    paths: &[PathBuf],
+    progress: impl FnMut(Progress),
+) -> LoadReport<PakRegistry> {
+    load_impl(paths, true, progress)
+}
+fn load_impl(
+    paths: &[PathBuf],
+    images: bool,
     mut progress: impl FnMut(Progress),
 ) -> LoadReport<PakRegistry> {
     let mut report = LoadReport {
@@ -95,7 +111,11 @@ pub fn load_sources_with_progress(
     }
     let total = sources.iter().map(|(_, files)| files.len()).sum();
     let mut completed = 0;
+    let mut inherited_raster = None;
+    let mut material_budget = preview::MATERIAL_LIMIT;
     for (directory, files) in sources {
+        let mut source_raster = None;
+        let mut source_ids = BTreeSet::new();
         let text_dir = directory.join("text");
         if text_dir.exists() {
             match list_files(&text_dir) {
@@ -135,16 +155,36 @@ pub fn load_sources_with_progress(
         for file in files {
             let source = source_ref(&directory, &file);
             progress(Progress {
+                stage: images.then(|| "pak".into()),
                 completed,
                 total,
                 file: source.file.clone(),
             });
-            match read_limited(&file, 256 * 1024 * 1024)
-                .and_then(|b| parser::parse_pak(&b, &source))
-            {
-                Ok(objects) => {
+            let budget_before = material_budget;
+            match read_limited(&file, 256 * 1024 * 1024).and_then(|b| {
+                if images {
+                    parser::parse_pak_assets(&b, &source, &mut material_budget)
+                } else {
+                    parser::parse_pak(&b, &source).map(|objects| (objects, BTreeMap::new(), None))
+                }
+            }) {
+                Ok((objects, mut image_sources, raster)) => {
+                    if raster.is_some() {
+                        source_raster = raster;
+                    }
                     report.files_loaded += 1;
                     for mut object in objects {
+                        if object.kind == "industry" {
+                            source_ids.insert(object.id.clone());
+                            if let Some(old) = report.data.images.remove(&object.id) {
+                                material_budget += old.material_bytes();
+                            }
+                            if let Some(image_source) = image_sources
+                                .remove(&format!("{}:{}", object.id, object.source.object_index))
+                            {
+                                report.data.images.insert(object.id.clone(), image_source);
+                            }
+                        }
                         if let Some(old) = report.data.objects.remove(&object.id) {
                             if old.source.directory == object.source.directory {
                                 report.diagnostics.push(diagnostic(
@@ -164,6 +204,7 @@ pub fn load_sources_with_progress(
                     }
                 }
                 Err(e) => {
+                    material_budget = budget_before;
                     report.files_failed += 1;
                     report
                         .diagnostics
@@ -171,6 +212,13 @@ pub fn load_sources_with_progress(
                 }
             }
             completed += 1;
+        }
+        let raster = source_raster.or(inherited_raster);
+        inherited_raster = raster;
+        for id in source_ids {
+            if let Some(image_source) = report.data.images.get_mut(&id) {
+                image_source.raster = raster;
+            }
         }
     }
     for obj in report.data.objects.values_mut() {
@@ -201,6 +249,7 @@ pub fn load_sources_with_progress(
         )
     });
     progress(Progress {
+        stage: images.then(|| "pak".into()),
         completed,
         total,
         file: String::new(),

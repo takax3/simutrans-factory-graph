@@ -24,7 +24,8 @@ import {
   TriangleAlert,
 } from 'lucide-react';
 import '@xyflow/react/dist/style.css';
-import type { IndustryGraph } from './types';
+import type { IndustryGraph, PreviewImage } from './types';
+import IndustryImage from './IndustryImage';
 import {
   dependencies,
   expansionDirections,
@@ -40,6 +41,7 @@ import {
 
 type GraphNode = Node<{
   label: string;
+  image?: PreviewImage;
   internalName: string;
   industry: boolean;
   cycle: boolean;
@@ -148,6 +150,7 @@ function EntityNode({ data }: NodeProps<GraphNode>) {
         <span className="copy-status" role="status">
           {copyStatus}
         </span>
+        {data.industry && <IndustryImage image={data.image} name={data.label} />}
         {data.cycle && (
           <span className="node-status">
             <RotateCcw size={13} />
@@ -168,14 +171,16 @@ function EntityNode({ data }: NodeProps<GraphNode>) {
   );
 }
 const nodeTypes = { entity: EntityNode };
-const WIDTH = 242,
-  HEIGHT = 190;
+const WIDTH = 242;
+const nodeHeight = (graph: IndustryGraph, id: string) => (graph.industries[id] ? 254 : 190);
 
-function layout(occurrences: Occurrence[]) {
+function layout(occurrences: Occurrence[], graph: IndustryGraph) {
   const model = new dagre.graphlib.Graph();
   model.setGraph({ rankdir: 'TB', nodesep: 30, ranksep: 65, marginx: 40, marginy: 40 });
   model.setDefaultEdgeLabel(() => ({}));
-  occurrences.forEach((n) => model.setNode(n.id, { width: WIDTH, height: HEIGHT }));
+  occurrences.forEach((n) =>
+    model.setNode(n.id, { width: WIDTH, height: nodeHeight(graph, n.objectId) }),
+  );
   occurrences.forEach((n) => {
     if (n.parentId) {
       if (n.direction === 'upstream') model.setEdge(n.id, n.parentId);
@@ -186,18 +191,22 @@ function layout(occurrences: Occurrence[]) {
   return new Map(
     occurrences.map((n) => {
       const position = model.node(n.id);
-      return [n.id, { x: position.x - WIDTH / 2, y: position.y - HEIGHT / 2 }];
+      return [
+        n.id,
+        { x: position.x - WIDTH / 2, y: position.y - nodeHeight(graph, n.objectId) / 2 },
+      ];
     }),
   );
 }
 
 interface GraphViewProps {
+  previews?: Record<string, PreviewImage>;
   graph: IndustryGraph;
   root: string;
   onRootChange: (objectId: string) => void;
 }
 
-function Explorer({ graph, root, onRootChange }: GraphViewProps) {
+function Explorer({ graph, root, onRootChange, previews }: GraphViewProps) {
   const [expanded, setExpanded] = useState(() => initialExpanded(graph, root));
   const [message, setMessage] = useState(() =>
     dependencies(graph, root).length + dependencies(graph, root, 'downstream').length >= NODE_LIMIT
@@ -206,12 +215,12 @@ function Explorer({ graph, root, onRootChange }: GraphViewProps) {
   );
   const flow = useReactFlow<GraphNode>();
   const occurrences = useMemo(() => visibleTree(graph, root, expanded), [graph, root, expanded]);
-  const positions = useMemo(() => layout(occurrences), [occurrences]);
+  const positions = useMemo(() => layout(occurrences, graph), [occurrences, graph]);
   const toggle = useCallback(
     (node: Occurrence, direction: Direction) => {
       try {
         const next = toggleExpansion(graph, root, expanded, node, direction);
-        const nextPositions = layout(visibleTree(graph, root, next));
+        const nextPositions = layout(visibleTree(graph, root, next), graph);
         const before = positions.get(node.id),
           after = nextPositions.get(node.id);
         const viewport = flow.getViewport();
@@ -237,6 +246,7 @@ function Explorer({ graph, root, onRootChange }: GraphViewProps) {
       position: positions.get(n.id)!,
       data: {
         label: object.display_name,
+        image: previews?.[n.objectId],
         internalName: object.internal_name,
         industry: !!graph.industries[n.objectId],
         cycle: n.cycle,
@@ -302,7 +312,10 @@ function Explorer({ graph, root, onRootChange }: GraphViewProps) {
           onClick={() => {
             const p = positions.get('root');
             if (p)
-              void flow.setCenter(p.x + WIDTH / 2, p.y + HEIGHT / 2, { zoom: 1, duration: 250 });
+              void flow.setCenter(p.x + WIDTH / 2, p.y + nodeHeight(graph, root) / 2, {
+                zoom: 1,
+                duration: 250,
+              });
           }}
         >
           <LocateFixed size={16} />

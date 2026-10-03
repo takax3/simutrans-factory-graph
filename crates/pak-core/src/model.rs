@@ -33,6 +33,8 @@ pub struct Object {
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct PakRegistry {
     pub objects: BTreeMap<String, Object>,
+    #[serde(skip)]
+    pub images: BTreeMap<String, crate::preview::ImageSource>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -75,6 +77,8 @@ pub struct IndustryGraph {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Progress {
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub stage: Option<String>,
     pub completed: usize,
     pub total: usize,
     pub file: String,

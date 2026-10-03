@@ -74,6 +74,12 @@ try {
   await page.getByRole('textbox', { name: '名前で検索' }).fill('supermarket');
   await page.locator('.object-row').click();
   await expect(page.locator('.preview-panel')).toContainText('要求する貨物');
+  await expect(page.locator('.preview-panel img')).toBeVisible();
+  expect(
+    await page
+      .locator('.preview-panel img')
+      .evaluate((img) => img.complete && img.naturalWidth > 0),
+  ).toBe(true);
   await page.screenshot({ path: `${output}/02-selection.png` });
   await page.getByRole('button', { name: 'この産業から表示' }).click();
   await expect(page.locator('.canvas-caption')).toContainText('6 / 1,000');
@@ -129,6 +135,8 @@ try {
   const downstreamNode = page.locator('[data-id="root/d0"]');
   await expect(rootNode.getByRole('button')).toHaveCount(5);
   await expect(rootNode.locator('.node-root-button')).toBeDisabled();
+  await expect(rootNode.locator('.industry-image img')).toBeVisible();
+  await expect(downstreamNode.locator('.industry-image')).toHaveCount(0);
   await expect(upstreamNode.getByRole('button', { name: /の下流を/ })).toHaveCount(0);
   await expect(downstreamNode.getByRole('button', { name: /の上流を/ })).toHaveCount(0);
   await page.getByRole('button', { name: '表示中のノードを全体表示' }).click();
@@ -196,6 +204,12 @@ try {
   expect(await page.evaluate(() => window.copiedNames)).toEqual(['弁当工場', 'bento_plant']);
   await page.screenshot({ path: output + '/07-change-root.png' });
   assertNoErrors();
+  const invalidImages = await page
+    .locator('.industry-image img')
+    .evaluateAll(
+      (images) => images.filter((img) => !img.complete || img.naturalWidth === 0).length,
+    );
+  expect(invalidImages).toBe(0);
   console.log(
     'Native smoke PASS: embedded UI, real IPC, Japan import, Japanese search, directional trees, independent collapse, vertical layout, contained buttons, highlighted root, one-click goods/industry root changes and cycle stop.',
   );

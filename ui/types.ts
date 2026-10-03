@@ -31,6 +31,7 @@ export interface Diagnostic {
   object_id: string | null;
 }
 export interface LoadReport {
+  previews?: Record<string, PreviewImage>;
   data: IndustryGraph;
   diagnostics: Diagnostic[];
   files_loaded: number;
@@ -38,7 +39,13 @@ export interface LoadReport {
   incomplete: boolean;
 }
 export interface Progress {
+  stage?: 'pak' | 'images';
   completed: number;
   total: number;
   file: string;
+}
+export interface PreviewImage {
+  data_url: string;
+  width: number;
+  height: number;
 }

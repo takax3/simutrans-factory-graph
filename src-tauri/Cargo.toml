@@ -11,4 +11,5 @@ tauri = { version = "2", features = [] }
 tauri-plugin-dialog = "2"
 pak-core = { path = "../crates/pak-core" }
 serde.workspace = true
+base64 = "0.22"
 

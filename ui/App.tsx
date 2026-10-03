@@ -20,7 +20,8 @@ import {
   TriangleAlert,
 } from 'lucide-react';
 import * as api from './api';
-import type { BaseObject, IndustryGraph, LoadReport, Progress } from './types';
+import type { BaseObject, IndustryGraph, LoadReport, Progress, PreviewImage } from './types';
+import IndustryImage from './IndustryImage';
 import { lookup, searchObjects } from './exploration';
 import GraphView from './GraphView';
 
@@ -68,7 +69,15 @@ function Diagnostics({ report }: { report: LoadReport }) {
   );
 }
 
-function ObjectPreview({ graph, object }: { graph: IndustryGraph; object: BaseObject }) {
+function ObjectPreview({
+  graph,
+  object,
+  image,
+}: {
+  graph: IndustryGraph;
+  object: BaseObject;
+  image?: PreviewImage;
+}) {
   const industry = graph.industries[object.id];
   const good = graph.goods[object.id];
   const rows: [string, string[]][] = industry
@@ -88,6 +97,14 @@ function ObjectPreview({ graph, object }: { graph: IndustryGraph; object: BaseOb
       </span>
       <h2>{object.display_name}</h2>
       <p className="internal-name">{object.internal_name}</p>
+      {industry && (
+        <IndustryImage
+          key={image?.data_url ?? object.id}
+          image={image}
+          name={object.display_name}
+          detail
+        />
+      )}
       {good?.unresolved && <p className="notice">定義が見つからない貨物です。</p>}
       {rows.map(([label, ids]) => (
         <section className="relation-group" key={label}>
@@ -417,7 +434,7 @@ export default function App() {
                   />
                   <span>
                     {progress
-                      ? `${progress.completed} / ${progress.total} ファイル`
+                      ? `${progress.stage === 'images' ? '産業画像生成' : 'PAK解析'} ${progress.completed} / ${progress.total} ${progress.stage === 'images' ? '産業' : 'ファイル'}`
                       : '解析を準備しています…'}
                   </span>
                   <small>{progress?.file && folderName(progress.file)}</small>
@@ -579,7 +596,11 @@ export default function App() {
               {selectedObject ? (
                 <>
                   <div className="preview-content">
-                    <ObjectPreview graph={graph} object={selectedObject} />
+                    <ObjectPreview
+                      graph={graph}
+                      object={selectedObject}
+                      image={report.previews?.[selectedObject.id]}
+                    />
                   </div>
                   <div className="preview-footer">
                     <button
@@ -637,6 +658,7 @@ export default function App() {
             </button>
           </div>
           <GraphView
+            previews={report.previews}
             key={root + loadedSources.join('|')}
             graph={graph}
             root={root}
