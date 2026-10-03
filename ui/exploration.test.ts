@@ -10,6 +10,23 @@ import {
 import { goods, industry, testGraph } from './fixtures';
 const open = (...keys: string[]) => new Set(keys);
 describe('bidirectional exploration', () => {
+  it('filters alternatives per occurrence and direction, preserving hidden branch expansion', () => {
+    const graph = testGraph();
+    graph.goods['goods:grain'].producers.push('industry:plant');
+    graph.goods['goods:grain'].consumers.push('industry:store');
+    const expanded = open('root:upstream', 'root:downstream', 'root/d1:downstream');
+    const choices = new Map([
+      ['root:upstream', 'industry:farm'],
+      ['root:downstream', 'industry:plant'],
+    ]);
+    const filtered = visibleTree(graph, 'goods:grain', expanded, 1000, choices);
+    expect(filtered.map((n) => n.id)).toEqual(['root', 'root/u0', 'root/d0']);
+    expect(visibleTree(graph, 'goods:grain', expanded).some((n) => n.id === 'root/u1')).toBe(true);
+    choices.delete('root:downstream');
+    expect(
+      visibleTree(graph, 'goods:grain', expanded, 1000, choices).some((n) => n.id === 'root/d1'),
+    ).toBe(true);
+  });
   it('initially opens one level on both sides, from industry and goods', () => {
     const graph = testGraph();
     expect(

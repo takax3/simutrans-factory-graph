@@ -43,12 +43,17 @@ try {
   const errors = [];
   page.on('pageerror', (error) => errors.push(error.message));
   await expect(page.getByRole('heading', { name: '産業チェーンを、読み込む。' })).toBeVisible();
-  await page.evaluate((source) => {
-    return window.__TAURI_INTERNALS__.invoke('plugin:event|emit', {
-      event: 'tauri://drag-drop',
-      payload: { paths: [source], position: { x: 400, y: 400 } },
-    });
-  }, source);
+  await expect
+    .poll(async () => {
+      await page.evaluate((source) => {
+        return window.__TAURI_INTERNALS__.invoke('plugin:event|emit', {
+          event: 'tauri://drag-drop',
+          payload: { paths: [source], position: { x: 400, y: 400 } },
+        });
+      }, source);
+      return page.getByRole('button', { name: '読み込みを開始' }).isEnabled();
+    })
+    .toBe(true);
   await page.getByRole('button', { name: '読み込みを開始' }).click();
   await expect(page.getByRole('button', { name: '起点を選択する' })).toBeEnabled({
     timeout: 60000,
@@ -98,6 +103,27 @@ try {
     );
   expect(invalid).toBe(0);
   await page.screenshot({ path: output + '/02-diy-sawmill.png' });
+  await sawmill.getByRole('button', { name: /の上流を展開/ }).click();
+  await page.getByRole('button', { name: '表示中のノードを全体表示' }).click();
+  const timber = page
+    .locator('.react-flow__node')
+    .filter({ has: page.locator('small', { hasText: /^Holz$/ }) });
+  await timber.getByRole('button', { name: /の上流を展開/ }).click();
+  await page.getByRole('button', { name: '表示中のノードを全体表示' }).click();
+  const forest = page
+    .locator('.react-flow__node')
+    .filter({ has: page.locator('small', { hasText: /^ForestPlantation$/ }) });
+  const otherForest = page
+    .locator('.react-flow__node')
+    .filter({ has: page.locator('small', { hasText: /^pak128edo_bassaijyo$/ }) });
+  await expect(otherForest).toBeVisible();
+  await forest.getByRole('button', { name: /の枝に絞る/ }).click();
+  await expect(otherForest).toHaveCount(0);
+  await expect(forest).toBeVisible();
+  await page.screenshot({ path: output + '/03-filtered-branch.png' });
+  await forest.getByRole('button', { name: /の絞り込みを解除/ }).click();
+  await page.getByRole('button', { name: '表示中のノードを全体表示' }).click();
+  await expect(otherForest).toBeVisible();
   expect(errors).toEqual([]);
   console.log(
     'Native preview PASS: 246 industries, 246 PNG previews, no image errors; DIY and sawmill visible.',

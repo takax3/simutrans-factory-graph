@@ -53,6 +53,8 @@ type GraphNode = Node<{
   childCount: Record<Direction, number>;
   toggle: (direction: Direction) => void;
   changeRoot: () => void;
+  filterBranch?: () => void;
+  filtered: boolean;
 }>;
 
 function EntityNode({ data }: NodeProps<GraphNode>) {
@@ -125,6 +127,18 @@ function EntityNode({ data }: NodeProps<GraphNode>) {
             {data.root ? '現在の起点' : '起点にする'}
           </button>
         </span>
+        {data.filterBranch && (
+          <div className="node-filter-row">
+            <button
+              className="node-root-button nodrag nopan"
+              onClick={data.filterBranch}
+              aria-label={`${data.label}の${data.filtered ? '絞り込みを解除' : '枝に絞る'}`}
+              aria-pressed={data.filtered}
+            >
+              {data.filtered ? '絞り込みを解除' : 'この産業に絞る'}
+            </button>
+          </div>
+        )}
         <div className="node-name-row">
           <button
             className="node-copy-button nodrag nopan"
@@ -208,19 +222,23 @@ interface GraphViewProps {
 
 function Explorer({ graph, root, onRootChange, previews }: GraphViewProps) {
   const [expanded, setExpanded] = useState(() => initialExpanded(graph, root));
+  const [choices, setChoices] = useState<Map<string, string>>(() => new Map());
   const [message, setMessage] = useState(() =>
     dependencies(graph, root).length + dependencies(graph, root, 'downstream').length >= NODE_LIMIT
       ? '起点の関係先が表示上限を超えるため、一部の方向を折り畳んでいます。'
       : '',
   );
   const flow = useReactFlow<GraphNode>();
-  const occurrences = useMemo(() => visibleTree(graph, root, expanded), [graph, root, expanded]);
+  const occurrences = useMemo(
+    () => visibleTree(graph, root, expanded, NODE_LIMIT, choices),
+    [graph, root, expanded, choices],
+  );
   const positions = useMemo(() => layout(occurrences, graph), [occurrences, graph]);
   const toggle = useCallback(
     (node: Occurrence, direction: Direction) => {
       try {
-        const next = toggleExpansion(graph, root, expanded, node, direction);
-        const nextPositions = layout(visibleTree(graph, root, next), graph);
+        const next = toggleExpansion(graph, root, expanded, node, direction, choices);
+        const nextPositions = layout(visibleTree(graph, root, next, NODE_LIMIT, choices), graph);
         const before = positions.get(node.id),
           after = nextPositions.get(node.id);
         const viewport = flow.getViewport();
@@ -236,10 +254,39 @@ function Explorer({ graph, root, onRootChange, previews }: GraphViewProps) {
         setMessage(e instanceof Error ? e.message : String(e));
       }
     },
-    [graph, root, expanded, positions, flow],
+    [graph, root, expanded, positions, flow, choices],
   );
+  const filterBranch = (node: Occurrence) => {
+    const key = expansionKey(node.parentId!, node.direction!);
+    const next = new Map(choices);
+    if (next.get(key) === node.objectId) next.delete(key);
+    else next.set(key, node.objectId);
+    try {
+      const nextPositions = layout(visibleTree(graph, root, expanded, NODE_LIMIT, next), graph);
+      const before = positions.get(node.id),
+        after = nextPositions.get(node.id);
+      const viewport = flow.getViewport();
+      setChoices(next);
+      setMessage('');
+      if (before && after)
+        void flow.setViewport({
+          ...viewport,
+          x: viewport.x + (before.x - after.x) * viewport.zoom,
+          y: viewport.y + (before.y - after.y) * viewport.zoom,
+        });
+    } catch (e) {
+      setMessage(e instanceof Error ? e.message : String(e));
+    }
+  };
   const nodes: GraphNode[] = occurrences.map((n) => {
     const object = lookup(graph, n.objectId)!;
+    const parent = occurrences.find((p) => p.id === n.parentId);
+    const canFilter =
+      !!parent &&
+      !!n.direction &&
+      !!graph.industries[n.objectId] &&
+      !!graph.goods[parent.objectId] &&
+      dependencies(graph, parent.objectId, n.direction).length > 1;
     return {
       id: n.id,
       type: 'entity',
@@ -264,6 +311,11 @@ function Explorer({ graph, root, onRootChange, previews }: GraphViewProps) {
         },
         toggle: (direction) => toggle(n, direction),
         changeRoot: () => onRootChange(n.objectId),
+        filtered:
+          !!parent &&
+          !!n.direction &&
+          choices.get(expansionKey(parent.id, n.direction)) === n.objectId,
+        filterBranch: canFilter ? () => filterBranch(n) : undefined,
       },
     };
   });

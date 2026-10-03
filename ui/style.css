@@ -1050,6 +1050,15 @@ progress {
 .node-root-button:hover:not(:disabled) {
   background: #e9f0fa;
 }
+.node-filter-row {
+  display: flex;
+  justify-content: flex-end;
+  margin: -4px 0 5px;
+}
+.node-filter-row button[aria-pressed='true'] {
+  background: #e9f0fa;
+  border-color: #6886b3;
+}
 .node-root-button:disabled {
   cursor: default;
   color: #9aa5b2;

@@ -32,6 +32,7 @@ export function visibleTree(
   root: string,
   expanded: ReadonlySet<string>,
   limit = NODE_LIMIT,
+  choices: ReadonlyMap<string, string> = new Map(),
 ): Occurrence[] {
   if (!lookup(graph, root)) return [];
   const nodes: Occurrence[] = [];
@@ -47,6 +48,8 @@ export function visibleTree(
       if (!current.cycle && expanded.has(expansionKey(current.id, direction))) {
         const ancestors = [...current.ancestors, current.objectId];
         dependencies(graph, current.objectId, direction).forEach((objectId, child) => {
+          const choice = choices.get(expansionKey(current.id, direction));
+          if (choice && choice !== objectId) return;
           if (queue.length >= limit)
             throw new Error(
               `表示上限は${limit.toLocaleString()}ノードです。他の枝を折り畳んでから展開してください。`,
@@ -89,6 +92,7 @@ export function toggleExpansion(
   expanded: ReadonlySet<string>,
   node: Occurrence,
   direction: Direction = 'upstream',
+  choices: ReadonlyMap<string, string> = new Map(),
 ): Set<string> {
   const next = new Set(expanded);
   if (
@@ -103,7 +107,7 @@ export function toggleExpansion(
     const prefix = node.id + '/' + (direction === 'upstream' ? 'u' : 'd');
     for (const id of next) if (id.startsWith(prefix)) next.delete(id);
   } else next.add(key);
-  visibleTree(graph, root, next);
+  visibleTree(graph, root, next, NODE_LIMIT, choices);
   return next;
 }
 
