@@ -1085,6 +1085,19 @@ progress {
   justify-content: center;
   gap: 5px;
 }
+.entity-direction {
+  width: 50%;
+  height: 100%;
+}
+.entity-upstream {
+  margin-right: auto;
+}
+.entity-downstream {
+  margin-left: auto;
+}
+.entity-direction + .entity-direction {
+  border-left: 1px solid #e7edf5;
+}
 .entity-bottom > span {
   color: #91a0b3;
 }

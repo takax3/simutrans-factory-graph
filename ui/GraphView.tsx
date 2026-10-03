@@ -77,7 +77,7 @@ function EntityNode({ data }: NodeProps<GraphNode>) {
         ? '生産貨物'
         : '消費産業';
     return (
-      <div className={'entity-bottom ' + (upstream ? 'entity-top' : '')}>
+      <div className={'entity-direction ' + (upstream ? 'entity-upstream' : 'entity-downstream')}>
         <button
           className="nodrag"
           onClick={() => data.toggle(direction)}
@@ -92,8 +92,8 @@ function EntityNode({ data }: NodeProps<GraphNode>) {
           aria-expanded={data.expanded[direction]}
         >
           {data.expanded[direction] ? <Minus size={13} /> : <Plus size={13} />}
-          {upstream ? '↑ ' : '↓ '}
-          {label} {data.childCount[direction]} 件{data.expanded[direction] ? '・折り畳む' : ''}
+          {upstream ? '← ' : '→ '}
+          {label} {data.childCount[direction]} 件
         </button>
       </div>
     );
@@ -107,9 +107,8 @@ function EntityNode({ data }: NodeProps<GraphNode>) {
         (data.root ? ' root-node' : '')
       }
     >
-      <Handle id="top-target" type="target" position={Position.Top} isConnectable={false} />
-      <Handle id="top-source" type="source" position={Position.Top} isConnectable={false} />
-      {data.directions.includes('upstream') && control('upstream')}
+      <Handle id="left-target" type="target" position={Position.Left} isConnectable={false} />
+      <Handle id="left-source" type="source" position={Position.Left} isConnectable={false} />
       <div className="entity-main">
         <span className="entity-kind">
           {data.industry ? <Factory size={16} /> : <Box size={16} />}
@@ -178,9 +177,12 @@ function EntityNode({ data }: NodeProps<GraphNode>) {
           </span>
         )}
       </div>
-      {data.directions.includes('downstream') && control('downstream')}
-      <Handle id="bottom-target" type="target" position={Position.Bottom} isConnectable={false} />
-      <Handle id="bottom-source" type="source" position={Position.Bottom} isConnectable={false} />
+      <div className="entity-bottom">
+        {data.directions.includes('upstream') && control('upstream')}
+        {data.directions.includes('downstream') && control('downstream')}
+      </div>
+      <Handle id="right-target" type="target" position={Position.Right} isConnectable={false} />
+      <Handle id="right-source" type="source" position={Position.Right} isConnectable={false} />
     </div>
   );
 }
@@ -190,7 +192,7 @@ const nodeHeight = (graph: IndustryGraph, id: string) => (graph.industries[id] ?
 
 function layout(occurrences: Occurrence[], graph: IndustryGraph) {
   const model = new dagre.graphlib.Graph();
-  model.setGraph({ rankdir: 'TB', nodesep: 30, ranksep: 65, marginx: 40, marginy: 40 });
+  model.setGraph({ rankdir: 'LR', nodesep: 30, ranksep: 45, marginx: 40, marginy: 40 });
   model.setDefaultEdgeLabel(() => ({}));
   occurrences.forEach((n) =>
     model.setNode(n.id, { width: WIDTH, height: nodeHeight(graph, n.objectId) }),
@@ -325,8 +327,8 @@ function Explorer({ graph, root, onRootChange, previews }: GraphViewProps) {
       id: `edge:${n.id}`,
       source: n.parentId!,
       target: n.id,
-      sourceHandle: n.direction === 'upstream' ? 'top-source' : 'bottom-source',
-      targetHandle: n.direction === 'upstream' ? 'bottom-target' : 'top-target',
+      sourceHandle: n.direction === 'upstream' ? 'left-source' : 'right-source',
+      targetHandle: n.direction === 'upstream' ? 'right-target' : 'left-target',
       type: 'smoothstep',
       markerEnd: { type: MarkerType.ArrowClosed, color: '#a9b7c9', width: 15, height: 15 },
       style: { stroke: '#a9b7c9', strokeWidth: 1.5 },
@@ -358,7 +360,7 @@ function Explorer({ graph, root, onRootChange, previews }: GraphViewProps) {
         </ReactFlow>
       </div>
       <div className="canvas-top">
-        <span>上側で上流へ、下側で下流へ展開</span>
+        <span>左側で上流へ、右側で下流へ展開</span>
         <button
           className="secondary"
           onClick={() => {

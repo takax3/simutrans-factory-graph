@@ -141,13 +141,13 @@ try {
   await expect(downstreamNode.getByRole('button', { name: /の上流を/ })).toHaveCount(0);
   await page.getByRole('button', { name: '表示中のノードを全体表示' }).click();
   const rootBox = await rootNode.boundingBox();
-  expect((await upstreamNode.boundingBox()).y).toBeLessThan(rootBox.y);
-  expect((await downstreamNode.boundingBox()).y).toBeGreaterThan(rootBox.y + rootBox.height);
+  expect((await upstreamNode.boundingBox()).x).toBeLessThan(rootBox.x);
+  expect((await downstreamNode.boundingBox()).x).toBeGreaterThan(rootBox.x + rootBox.width);
   await downstreamNode.getByRole('button', { name: /の下流を展開/ }).click();
   await page.getByRole('button', { name: '表示中のノードを全体表示' }).click();
   await expect(page.locator('.react-flow__node').filter({ hasText: 'supermarket' })).toBeVisible();
   const childBox = await page.locator('[data-id="root/d0/d0"]').boundingBox();
-  expect(childBox.y).toBeGreaterThan((await downstreamNode.boundingBox()).y);
+  expect(childBox.x).toBeGreaterThan((await downstreamNode.boundingBox()).x);
   await rootNode.getByRole('button', { name: /の上流を折り畳む/ }).click();
   await expect(page.locator('[data-id="root/u0"]')).toHaveCount(0);
   await expect(page.locator('[data-id="root/d0/d0"]')).toHaveCount(1);
@@ -155,8 +155,8 @@ try {
   await page.getByRole('button', { name: '表示中のノードを全体表示' }).click();
   await upstreamNode.getByRole('button', { name: /の上流を展開/ }).click();
   await page.getByRole('button', { name: '表示中のノードを全体表示' }).click();
-  expect((await page.locator('[data-id="root/u0/u0"]').boundingBox()).y).toBeLessThan(
-    (await upstreamNode.boundingBox()).y,
+  expect((await page.locator('[data-id="root/u0/u0"]').boundingBox()).x).toBeLessThan(
+    (await upstreamNode.boundingBox()).x,
   );
   await page.screenshot({ path: output + '/05-bidirectional.png' });
   const overflowingButtons = await page.locator('.entity-node').evaluateAll((nodes) =>
@@ -211,7 +211,7 @@ try {
     );
   expect(invalidImages).toBe(0);
   console.log(
-    'Native smoke PASS: embedded UI, real IPC, Japan import, Japanese search, directional trees, independent collapse, vertical layout, contained buttons, highlighted root, one-click goods/industry root changes and cycle stop.',
+    'Native smoke PASS: embedded UI, real IPC, Japan import, Japanese search, directional trees, independent collapse, horizontal layout, contained buttons, highlighted root, one-click goods/industry root changes and cycle stop.',
   );
   console.log(`Screenshots: ${output}`);
 } finally {
