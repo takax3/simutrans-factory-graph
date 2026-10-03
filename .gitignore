@@ -1,0 +1,11 @@
+node_modules/
+dist/
+target/
+.tools/
+.reference/
+test-results/
+playwright-report/
+*.log
+*.tsbuildinfo
+src-tauri/gen/
+

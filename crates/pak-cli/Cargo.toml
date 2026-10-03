@@ -1,0 +1,9 @@
+[package]
+name = "pak-cli"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+pak-core = { path = "../pak-core" }
+serde_json.workspace = true
+

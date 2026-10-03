@@ -1,0 +1,16 @@
+{
+  "japan": {
+    "files": 524,
+    "industries": 48,
+    "goods": 63,
+    "edges": 116,
+    "pak_files_sha256": "897189e06215bec644ae90aa474ea19770ed52624912f45f7fb18f3636e24bb4"
+  },
+  "pak64": {
+    "files": 780,
+    "industries": 40,
+    "goods": 23,
+    "edges": 61,
+    "pak_files_sha256": "fa338e33266386b71e97e54921ed178502a0f86e16c61dce691549e9e892a0c5"
+  }
+}
