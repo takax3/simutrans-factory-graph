@@ -127,7 +127,7 @@ try {
   const rootNode = page.locator('[data-id="root"]');
   const upstreamNode = page.locator('[data-id="root/u0"]');
   const downstreamNode = page.locator('[data-id="root/d0"]');
-  await expect(rootNode.getByRole('button')).toHaveCount(3);
+  await expect(rootNode.getByRole('button')).toHaveCount(5);
   await expect(rootNode.locator('.node-root-button')).toBeDisabled();
   await expect(upstreamNode.getByRole('button', { name: /の下流を/ })).toHaveCount(0);
   await expect(downstreamNode.getByRole('button', { name: /の上流を/ })).toHaveCount(0);
@@ -181,6 +181,19 @@ try {
   await expect(page.locator('[data-id="root"] small')).toHaveText('bento_plant');
   await expect(page.locator('.graph-title strong')).toHaveText('弁当工場');
   await expect(page.locator('.canvas-caption')).toContainText('5 / 1,000');
+  await page.evaluate(() => {
+    const write = navigator.clipboard.writeText.bind(navigator.clipboard);
+    window.copiedNames = [];
+    navigator.clipboard.writeText = async (text) => {
+      await write(text);
+      window.copiedNames.push(text);
+    };
+  });
+  await rootNode.getByRole('button', { name: '弁当工場の表示名をコピー', exact: true }).click();
+  await expect(rootNode.getByRole('status')).toHaveText('表示名をコピーしました');
+  await rootNode.getByRole('button', { name: 'bento_plantの内部名をコピー', exact: true }).click();
+  await expect(rootNode.getByRole('status')).toHaveText('内部名をコピーしました');
+  expect(await page.evaluate(() => window.copiedNames)).toEqual(['弁当工場', 'bento_plant']);
   await page.screenshot({ path: output + '/07-change-root.png' });
   assertNoErrors();
   console.log(

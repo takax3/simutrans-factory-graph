@@ -45,6 +45,15 @@ type GraphNode = Node<{
 }>;
 
 function EntityNode({ data }: NodeProps<GraphNode>) {
+  const [copyStatus, setCopyStatus] = useState('');
+  const copyName = async (text: string, kind: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopyStatus(kind + 'をコピーしました');
+    } catch {
+      setCopyStatus('コピーできませんでした。もう一度お試しください');
+    }
+  };
   const control = (direction: Direction) => {
     const upstream = direction === 'upstream';
     const label = upstream
@@ -105,8 +114,31 @@ function EntityNode({ data }: NodeProps<GraphNode>) {
             {data.root ? '現在の起点' : '起点にする'}
           </button>
         </span>
-        <strong title={data.label}>{data.label}</strong>
-        <small title={data.internalName}>{data.internalName}</small>
+        <div className="node-name-row">
+          <button
+            className="node-copy-button nodrag nopan"
+            onClick={() => void copyName(data.label, '表示名')}
+            aria-label={`${data.label}の表示名をコピー`}
+            title="表示名をコピー"
+          >
+            コピー
+          </button>
+          <strong title={data.label}>{data.label}</strong>
+        </div>
+        <div className="node-name-row internal-name-row">
+          <button
+            className="node-copy-button nodrag nopan"
+            onClick={() => void copyName(data.internalName, '内部名')}
+            aria-label={`${data.internalName}の内部名をコピー`}
+            title="内部名をコピー"
+          >
+            コピー
+          </button>
+          <small title={data.internalName}>{data.internalName}</small>
+        </div>
+        <span className="copy-status" role="status">
+          {copyStatus}
+        </span>
         {data.cycle && (
           <span className="node-status">
             <RotateCcw size={13} />
