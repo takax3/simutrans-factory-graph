@@ -75,7 +75,7 @@ pub(crate) fn outside_width(node: &Node) -> Result<u16, String> {
 }
 pub(crate) fn extract_building(node: &Node, budget: &mut usize) -> Result<Vec<Sprite>, String> {
     let v = word(node.body, 0)?;
-    if v & 0x8000 == 0 || ![5, 6, 7, 8, 10].contains(&(v & 0x7fff)) {
+    if v & 0x8000 == 0 || ![5, 6, 7, 8, 9, 10].contains(&(v & 0x7fff)) {
         return Err(format!("未対応の建物画像形式 BUIL v{}", v & 0x7fff));
     }
     let width = word(node.body, 10)? as usize;
@@ -255,7 +255,7 @@ fn decode(b: &[u8]) -> Result<(i32, i32, RgbaImage), String> {
     for _ in 0..h {
         let skip = word(b, pos)?;
         pos += 2;
-        rows.push(skip);
+        rows.push(skip & 0x7fff);
         loop {
             let run = word(b, pos)?;
             pos += 2;
@@ -281,7 +281,7 @@ fn decode(b: &[u8]) -> Result<(i32, i32, RgbaImage), String> {
     };
     pos = start;
     for row in 0..h {
-        let mut column = word(b, pos)? as u32 - left;
+        let mut column = (word(b, pos)? & 0x7fff) as u32 - left;
         pos += 2;
         loop {
             let run = word(b, pos)?;
@@ -301,7 +301,10 @@ fn decode(b: &[u8]) -> Result<(i32, i32, RgbaImage), String> {
             if skip == 0 {
                 break;
             }
-            column = column.checked_add(skip).ok_or("RLE座標が範囲外です")?;
+            // 0x8000 is a continuing run with zero gap, not a 32768-pixel gap or EOL.
+            column = column
+                .checked_add(skip & 0x7fff)
+                .ok_or("RLE座標が範囲外です")?;
         }
     }
     Ok((x, y, image))
@@ -506,6 +509,32 @@ mod tests {
         let (_, _, img) = decode(&body(3, 1, 1, &[0, 0x8001, 0x8020 + 15, 0])).unwrap();
         assert_eq!(img.get_pixel(0, 0)[3], 127);
         assert!(color(0x801f, false).is_err());
+    }
+    #[test]
+    fn masked_zero_gaps_continue_across_opaque_and_alpha_runs() {
+        let (_, _, img) = decode(&body(
+            3,
+            3,
+            1,
+            &[
+                0,
+                1,
+                0x7c00,
+                0x8000,
+                0x8001,
+                0x8020 + 15,
+                0x8000,
+                1,
+                0x001f,
+                0,
+            ],
+        ))
+        .unwrap();
+        assert_eq!(*img.get_pixel(0, 0), Rgba([248, 0, 0, 255]));
+        assert_eq!(*img.get_pixel(1, 0), Rgba([36, 75, 103, 127]));
+        assert_eq!(*img.get_pixel(2, 0), Rgba([0, 0, 248, 255]));
+        let (_, _, img) = decode(&body(3, 1, 1, &[0x8000, 0x8001, 0x8020 + 15, 0])).unwrap();
+        assert_eq!(img.get_pixel(0, 0)[3], 127);
     }
     fn sprite(tx: i32, ty: i32, height: i32, foreground: bool, pixel: u16) -> Sprite {
         Sprite {

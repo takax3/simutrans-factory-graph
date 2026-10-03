@@ -32,8 +32,11 @@ fn outside() -> Vec<u8> {
     )
 }
 fn factory(pixel: u16, broken: bool) -> Vec<u8> {
+    factory_version(pixel, broken, 5)
+}
+fn factory_version(pixel: u16, broken: bool, version: u16) -> Vec<u8> {
     let mut b = vec![0; 24];
-    b[..2].copy_from_slice(&0x8005u16.to_le_bytes());
+    b[..2].copy_from_slice(&(0x8000 | version).to_le_bytes());
     b[10] = 1;
     b[12] = 1;
     b[14] = 1;
@@ -55,6 +58,37 @@ fn factory(pixel: u16, broken: bool) -> Vec<u8> {
         &body,
         vec![building, node(b"XREF", b"SMOK\0\0", vec![])],
     )
+}
+#[test]
+fn renders_version9_buildings_with_the_same_geometry_as_version8() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut images = Vec::new();
+    for version in [8, 9] {
+        write(
+            dir.path(),
+            "factory.pak",
+            vec![outside(), factory_version(0x7c00, false, version)],
+        );
+        let report = load_sources_with_images_and_progress(&[dir.path().into()], |_| {});
+        images.push(
+            render_industry_preview(&report.data, "industry:test")
+                .unwrap()
+                .unwrap()
+                .png,
+        );
+    }
+    assert_eq!(images[0], images[1]);
+    write(
+        dir.path(),
+        "factory.pak",
+        vec![outside(), factory_version(0x7c00, false, 11)],
+    );
+    let report = load_sources_with_images_and_progress(&[dir.path().into()], |_| {});
+    assert_eq!(report.data.objects.len(), 1);
+    assert!(render_industry_preview(&report.data, "industry:test")
+        .unwrap_err()
+        .to_string()
+        .contains("BUIL v11"));
 }
 fn write(dir: &Path, name: &str, objects: Vec<Vec<u8>>) {
     let mut b = b"test\x1a".to_vec();
