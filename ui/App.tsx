@@ -574,7 +574,12 @@ export default function App() {
                     onClick={() => setSelected(object.id)}
                   >
                     <span className={`object-icon ${tab === 'goods' ? 'goods-icon' : ''}`}>
-                      {tab === 'industry' ? <Factory size={18} /> : <Box size={18} />}
+                      {tab === 'industry' ? (
+                        <IndustryImage
+                          image={report.previews?.[object.id]}
+                          name={object.display_name}
+                        />
+                      ) : <Box size={18} />}
                     </span>
                     <span>
                       <strong>{object.display_name}</strong>

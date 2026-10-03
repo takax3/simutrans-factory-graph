@@ -145,10 +145,11 @@ describe('application flow', () => {
       target: { value: 'store' },
     });
     fireEvent.click(screen.getByRole('button', { name: /デパート\s*store/ }));
-    expect(screen.getByRole('img', { name: 'デパートの建物画像' })).toHaveAttribute(
-      'src',
-      previousImage.data_url,
-    );
+    const images = screen.getAllByRole('img', { name: 'デパートの建物画像' });
+    expect(images).toHaveLength(2);
+    for (const image of images) {
+      expect(image).toHaveAttribute('src', previousImage.data_url);
+    }
     fireEvent.change(screen.getByRole('textbox', { name: '名前で検索' }), {
       target: { value: '見つからない名前' },
     });

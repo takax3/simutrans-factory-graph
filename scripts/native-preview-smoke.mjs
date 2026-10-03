@@ -72,6 +72,9 @@ try {
   expect(stats).toEqual({ industries: 246, previews: 246, imageErrors: [] });
   await page.getByRole('button', { name: '起点を選択する' }).click();
   await page.getByRole('textbox', { name: '名前で検索' }).fill('MaterialsWholesales');
+  const thumbnail = page.locator('.object-row .object-icon img');
+  await expect(thumbnail).toBeVisible();
+  expect(await thumbnail.evaluate((img) => img.complete && img.naturalWidth > 0)).toBe(true);
   await page.locator('.object-row').click();
   const detail = page.locator('.preview-panel img');
   await expect(detail).toBeVisible();
