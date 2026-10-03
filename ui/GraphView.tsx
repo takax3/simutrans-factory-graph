@@ -18,6 +18,7 @@ import '@xyflow/react/dist/style.css';
 import type { IndustryGraph } from './types';
 import {
   dependencies,
+  expansionKey,
   initialExpanded,
   lookup,
   NODE_LIMIT,
@@ -34,70 +35,87 @@ type GraphNode = Node<{
   cycle: boolean;
   shared: boolean;
   unresolved: boolean;
-  expanded: boolean;
-  childCount: number;
-  direction: Direction;
-  toggle: () => void;
+  root: boolean;
+  expanded: Record<Direction, boolean>;
+  childCount: Record<Direction, number>;
+  toggle: (direction: Direction) => void;
 }>;
 
 function EntityNode({ data }: NodeProps<GraphNode>) {
+  const control = (direction: Direction) => {
+    const upstream = direction === 'upstream';
+    const label = upstream
+      ? data.industry
+        ? '要求貨物'
+        : '生産産業'
+      : data.industry
+        ? '生産貨物'
+        : '消費産業';
+    return (
+      <div className={'entity-bottom ' + (upstream ? 'entity-top' : '')}>
+        <button
+          className="nodrag"
+          onClick={() => data.toggle(direction)}
+          disabled={data.cycle || !data.childCount[direction]}
+          aria-label={
+            data.label +
+            'の' +
+            (upstream ? '上流' : '下流') +
+            'を' +
+            (data.expanded[direction] ? '折り畳む' : '展開')
+          }
+          aria-expanded={data.expanded[direction]}
+        >
+          {data.expanded[direction] ? <Minus size={13} /> : <Plus size={13} />}
+          {upstream ? '↑ ' : '↓ '}
+          {label} {data.childCount[direction]} 件{data.expanded[direction] ? '・折り畳む' : ''}
+        </button>
+      </div>
+    );
+  };
   return (
     <div
-      className={`entity-node ${data.industry ? 'industry-node' : 'goods-node'} ${data.cycle ? 'cycle-node' : ''}`}
+      className={
+        'entity-node ' +
+        (data.industry ? 'industry-node' : 'goods-node') +
+        (data.cycle ? ' cycle-node' : '') +
+        (data.root ? ' root-node' : '')
+      }
     >
-      <Handle type="target" position={Position.Top} isConnectable={false} />
-      <button
-        className="entity-main nodrag"
-        onClick={data.toggle}
-        disabled={data.cycle || !data.childCount}
-        aria-label={`${data.label}を${data.expanded ? '折り畳む' : '展開'}`}
-        aria-expanded={data.expanded}
-      >
+      <Handle id="top-target" type="target" position={Position.Top} isConnectable={false} />
+      <Handle id="top-source" type="source" position={Position.Top} isConnectable={false} />
+      {control('upstream')}
+      <div className="entity-main">
         <span className="entity-kind">
           {data.industry ? <Factory size={16} /> : <Box size={16} />}
           {data.industry ? '産業' : '貨物'}
+          {data.root && <span className="root-label">起点</span>}
           {data.shared && <span className="shared-label">共有</span>}
         </span>
         <strong title={data.label}>{data.label}</strong>
         <small title={data.internalName}>{data.internalName}</small>
-      </button>
-      <div className="entity-bottom">
-        {data.cycle ? (
-          <span>
+        {data.cycle && (
+          <span className="node-status">
             <RotateCcw size={13} />
             循環参照・展開停止
           </span>
-        ) : data.unresolved ? (
-          <span>
+        )}
+        {data.unresolved && (
+          <span className="node-status">
             <TriangleAlert size={13} />
             定義なし
           </span>
-        ) : data.childCount ? (
-          <button className="nodrag" onClick={data.toggle}>
-            {data.expanded ? <Minus size={13} /> : <Plus size={13} />}
-            {data.expanded
-              ? '折り畳む'
-              : `${data.direction === 'downstream' ? (data.industry ? '生産貨物' : '消費産業') : data.industry ? '要求貨物' : '生産産業'} ${data.childCount} 件を展開`}
-          </button>
-        ) : (
-          <span>
-            {data.direction === 'downstream'
-              ? data.industry
-                ? '生産する貨物なし'
-                : '消費する産業なし'
-              : data.industry
-                ? '原料を必要としない産業'
-                : '生産する産業なし'}
-          </span>
         )}
       </div>
-      <Handle type="source" position={Position.Bottom} isConnectable={false} />
+      {control('downstream')}
+      <Handle id="bottom-target" type="target" position={Position.Bottom} isConnectable={false} />
+      <Handle id="bottom-source" type="source" position={Position.Bottom} isConnectable={false} />
     </div>
   );
 }
 const nodeTypes = { entity: EntityNode };
 const WIDTH = 242,
-  HEIGHT = 136;
+  HEIGHT = 190;
 
 function layout(occurrences: Occurrence[]) {
   const model = new dagre.graphlib.Graph();
@@ -105,7 +123,10 @@ function layout(occurrences: Occurrence[]) {
   model.setDefaultEdgeLabel(() => ({}));
   occurrences.forEach((n) => model.setNode(n.id, { width: WIDTH, height: HEIGHT }));
   occurrences.forEach((n) => {
-    if (n.parentId) model.setEdge(n.parentId, n.id);
+    if (n.parentId) {
+      if (n.direction === 'upstream') model.setEdge(n.id, n.parentId);
+      else model.setEdge(n.parentId, n.id);
+    }
   });
   dagre.layout(model);
   return new Map(
@@ -116,32 +137,21 @@ function layout(occurrences: Occurrence[]) {
   );
 }
 
-function Explorer({
-  graph,
-  root,
-  direction,
-}: {
-  graph: IndustryGraph;
-  root: string;
-  direction: Direction;
-}) {
-  const [expanded, setExpanded] = useState(() => initialExpanded(graph, root, direction));
+function Explorer({ graph, root }: { graph: IndustryGraph; root: string }) {
+  const [expanded, setExpanded] = useState(() => initialExpanded(graph, root));
   const [message, setMessage] = useState(() =>
-    dependencies(graph, root, direction).length >= NODE_LIMIT
-      ? '起点の依存先が表示上限を超えるため、起点だけを表示しています。'
+    dependencies(graph, root).length + dependencies(graph, root, 'downstream').length >= NODE_LIMIT
+      ? '起点の関係先が表示上限を超えるため、一部の方向を折り畳んでいます。'
       : '',
   );
   const flow = useReactFlow<GraphNode>();
-  const occurrences = useMemo(
-    () => visibleTree(graph, root, expanded, NODE_LIMIT, direction),
-    [graph, root, expanded, direction],
-  );
+  const occurrences = useMemo(() => visibleTree(graph, root, expanded), [graph, root, expanded]);
   const positions = useMemo(() => layout(occurrences), [occurrences]);
   const toggle = useCallback(
-    (node: Occurrence) => {
+    (node: Occurrence, direction: Direction) => {
       try {
         const next = toggleExpansion(graph, root, expanded, node, direction);
-        const nextPositions = layout(visibleTree(graph, root, next, NODE_LIMIT, direction));
+        const nextPositions = layout(visibleTree(graph, root, next));
         const before = positions.get(node.id),
           after = nextPositions.get(node.id);
         const viewport = flow.getViewport();
@@ -157,7 +167,7 @@ function Explorer({
         setMessage(e instanceof Error ? e.message : String(e));
       }
     },
-    [graph, root, expanded, direction, positions, flow],
+    [graph, root, expanded, positions, flow],
   );
   const nodes: GraphNode[] = occurrences.map((n) => {
     const object = lookup(graph, n.objectId)!;
@@ -172,10 +182,16 @@ function Explorer({
         cycle: n.cycle,
         shared: n.shared,
         unresolved: graph.goods[n.objectId]?.unresolved ?? false,
-        expanded: expanded.has(n.id),
-        childCount: dependencies(graph, n.objectId, direction).length,
-        direction,
-        toggle: () => toggle(n),
+        root: n.id === 'root',
+        expanded: {
+          upstream: expanded.has(expansionKey(n.id, 'upstream')),
+          downstream: expanded.has(expansionKey(n.id, 'downstream')),
+        },
+        childCount: {
+          upstream: dependencies(graph, n.objectId).length,
+          downstream: dependencies(graph, n.objectId, 'downstream').length,
+        },
+        toggle: (direction) => toggle(n, direction),
       },
     };
   });
@@ -185,6 +201,8 @@ function Explorer({
       id: `edge:${n.id}`,
       source: n.parentId!,
       target: n.id,
+      sourceHandle: n.direction === 'upstream' ? 'top-source' : 'bottom-source',
+      targetHandle: n.direction === 'upstream' ? 'bottom-target' : 'top-target',
       type: 'smoothstep',
       markerEnd: { type: MarkerType.ArrowClosed, color: '#a9b7c9', width: 15, height: 15 },
       style: { stroke: '#a9b7c9', strokeWidth: 1.5 },
@@ -216,7 +234,7 @@ function Explorer({
         </ReactFlow>
       </div>
       <div className="canvas-top">
-        <span>クリックして{direction === 'downstream' ? '下流' : '上流'}へ展開</span>
+        <span>上側で上流へ、下側で下流へ展開</span>
         <button
           className="secondary"
           onClick={() => {
@@ -240,18 +258,12 @@ function Explorer({
       )}
       <div className="canvas-caption">
         {occurrences.length.toLocaleString()} / {NODE_LIMIT.toLocaleString()} ノード
-        <span>
-          {direction === 'downstream' ? '線は生産・消費先を辿る方向です' : '線は依存を辿る方向です'}
-        </span>
+        <span>線はクリックした方向へ関係を辿ります</span>
       </div>
     </div>
   );
 }
-export default function GraphView(props: {
-  graph: IndustryGraph;
-  root: string;
-  direction: Direction;
-}) {
+export default function GraphView(props: { graph: IndustryGraph; root: string }) {
   return (
     <ReactFlowProvider>
       <Explorer {...props} />

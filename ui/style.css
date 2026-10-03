@@ -841,14 +841,6 @@ progress {
   color: #75849a;
   padding: 9px;
 }
-.graph-toolbar select {
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: white;
-  padding: 8px;
-  font: inherit;
-  font-size: 12px;
-}
 .graph-title {
   border-left: 1px solid var(--border);
   padding-left: 25px;
@@ -940,7 +932,7 @@ progress {
   width: 100%;
   text-align: left;
   border-radius: 8px 8px 0 0;
-  height: 99px;
+  height: 114px;
 }
 .entity-main:disabled {
   opacity: 1;
@@ -1116,4 +1108,36 @@ progress {
     animation: none !important;
     transition: none !important;
   }
+}
+
+.entity-top,
+.goods-node .entity-top {
+  border-top: 0;
+  border-bottom: 1px solid #e7edf5;
+  border-radius: 8px 8px 0 0;
+}
+.goods-node .entity-top {
+  border-radius: 17px 17px 0 0;
+}
+.root-node {
+  border: 3px solid #dc3545;
+  box-shadow: 0 0 0 4px #dc354522;
+}
+.root-label {
+  background: #dc3545;
+  color: white;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.node-status {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  margin-top: 6px;
+  font-size: 10px;
+  color: #977541;
+}
+.entity-bottom button:disabled {
+  opacity: 0.55;
+  cursor: default;
 }

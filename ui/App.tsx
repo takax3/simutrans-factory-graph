@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import * as api from './api';
 import type { BaseObject, IndustryGraph, LoadReport, Progress } from './types';
-import { lookup, searchObjects, type Direction } from './exploration';
+import { lookup, searchObjects } from './exploration';
 import GraphView from './GraphView';
 
 type Screen = 'sources' | 'select' | 'graph';
@@ -145,7 +145,6 @@ export default function App() {
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState('');
   const [root, setRoot] = useState('');
-  const [direction, setDirection] = useState<Direction>('upstream');
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const current = useRef({ screen, busy, adding });
   current.current = { screen, busy, adding };
@@ -620,16 +619,8 @@ export default function App() {
             </button>
             <div className="graph-title">
               <strong>{lookup(graph, root)?.display_name}</strong>
-              <span>{direction === 'upstream' ? '上流の依存関係' : '下流の生産・消費関係'}</span>
+              <span>上流・下流の産業と貨物</span>
             </div>
-            <select
-              aria-label="探索方向"
-              value={direction}
-              onChange={(event) => setDirection(event.target.value as Direction)}
-            >
-              <option value="upstream">上流：原料・生産元</option>
-              <option value="downstream">下流：生産貨物・消費先</option>
-            </select>
             <div className="legend">
               <span>
                 <i className="industry-dot" />
@@ -645,12 +636,7 @@ export default function App() {
               読み込み設定
             </button>
           </div>
-          <GraphView
-            key={direction + root + loadedSources.join('|')}
-            graph={graph}
-            root={root}
-            direction={direction}
-          />
+          <GraphView key={root + loadedSources.join('|')} graph={graph} root={root} />
         </div>
       )}
 

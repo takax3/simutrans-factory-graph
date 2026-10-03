@@ -43,11 +43,8 @@ describe('application flow', () => {
     expect(screen.getByText('要求する貨物')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'この産業から表示' }));
     expect(screen.getByText('探索中:industry:store')).toBeInTheDocument();
-    fireEvent.change(screen.getByRole('combobox', { name: '探索方向' }), {
-      target: { value: 'downstream' },
-    });
-    expect(screen.getByText('下流の生産・消費関係')).toBeInTheDocument();
-    expect(api.loadSources).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('combobox', { name: '探索方向' })).not.toBeInTheDocument();
+    expect(screen.getByText('上流・下流の産業と貨物')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: '起点変更' }));
     fireEvent.click(screen.getByRole('tab', { name: /貨物/ }));
     fireEvent.change(screen.getByRole('textbox', { name: '名前で検索' }), {
