@@ -925,7 +925,6 @@ progress {
 }
 .entity-node {
   width: 242px;
-  height: 190px;
   display: flex;
   flex-direction: column;
   background: white;
@@ -942,9 +941,6 @@ progress {
   border-radius: 8px 8px 0 0;
   flex: 1;
   min-height: 0;
-}
-.industry-node {
-  height: 254px;
 }
 .industry-image {
   height: 64px;

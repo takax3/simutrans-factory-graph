@@ -55,6 +55,7 @@ type GraphNode = Node<{
   changeRoot: () => void;
   filterBranch?: () => void;
   filtered: boolean;
+  height: number;
 }>;
 
 function EntityNode({ data }: NodeProps<GraphNode>) {
@@ -100,6 +101,7 @@ function EntityNode({ data }: NodeProps<GraphNode>) {
   };
   return (
     <div
+      style={{ height: data.height }}
       className={
         'entity-node ' +
         (data.industry ? 'industry-node' : 'goods-node') +
@@ -188,14 +190,32 @@ function EntityNode({ data }: NodeProps<GraphNode>) {
 }
 const nodeTypes = { entity: EntityNode };
 const WIDTH = 242;
-const nodeHeight = (graph: IndustryGraph, id: string) => (graph.industries[id] ? 254 : 190);
+function canFilterBranch(graph: IndustryGraph, node: Occurrence, occurrences: Occurrence[]) {
+  const parent = occurrences.find((p) => p.id === node.parentId);
+  return (
+    !!parent &&
+    !!node.direction &&
+    !!graph.industries[node.objectId] &&
+    !!graph.goods[parent.objectId] &&
+    dependencies(graph, parent.objectId, node.direction).length > 1
+  );
+}
+function nodeHeight(graph: IndustryGraph, node: Occurrence, occurrences: Occurrence[]) {
+  return (
+    (graph.industries[node.objectId] ? 195 : 126) +
+    (canFilterBranch(graph, node, occurrences) ? 24 : 0) +
+    (node.cycle ? 20 : 0) +
+    (graph.goods[node.objectId]?.unresolved ? 20 : 0) +
+    (node.id === 'root' ? 4 : 0)
+  );
+}
 
 function layout(occurrences: Occurrence[], graph: IndustryGraph) {
   const model = new dagre.graphlib.Graph();
   model.setGraph({ rankdir: 'LR', nodesep: 30, ranksep: 45, marginx: 40, marginy: 40 });
   model.setDefaultEdgeLabel(() => ({}));
   occurrences.forEach((n) =>
-    model.setNode(n.id, { width: WIDTH, height: nodeHeight(graph, n.objectId) }),
+    model.setNode(n.id, { width: WIDTH, height: nodeHeight(graph, n, occurrences) }),
   );
   occurrences.forEach((n) => {
     if (n.parentId) {
@@ -209,7 +229,7 @@ function layout(occurrences: Occurrence[], graph: IndustryGraph) {
       const position = model.node(n.id);
       return [
         n.id,
-        { x: position.x - WIDTH / 2, y: position.y - nodeHeight(graph, n.objectId) / 2 },
+        { x: position.x - WIDTH / 2, y: position.y - nodeHeight(graph, n, occurrences) / 2 },
       ];
     }),
   );
@@ -283,17 +303,13 @@ function Explorer({ graph, root, onRootChange, previews }: GraphViewProps) {
   const nodes: GraphNode[] = occurrences.map((n) => {
     const object = lookup(graph, n.objectId)!;
     const parent = occurrences.find((p) => p.id === n.parentId);
-    const canFilter =
-      !!parent &&
-      !!n.direction &&
-      !!graph.industries[n.objectId] &&
-      !!graph.goods[parent.objectId] &&
-      dependencies(graph, parent.objectId, n.direction).length > 1;
+    const canFilter = canFilterBranch(graph, n, occurrences);
     return {
       id: n.id,
       type: 'entity',
       position: positions.get(n.id)!,
       data: {
+        height: nodeHeight(graph, n, occurrences),
         label: object.display_name,
         image: previews?.[n.objectId],
         internalName: object.internal_name,
@@ -366,10 +382,14 @@ function Explorer({ graph, root, onRootChange, previews }: GraphViewProps) {
           onClick={() => {
             const p = positions.get('root');
             if (p)
-              void flow.setCenter(p.x + WIDTH / 2, p.y + nodeHeight(graph, root) / 2, {
-                zoom: 1,
-                duration: 250,
-              });
+              void flow.setCenter(
+                p.x + WIDTH / 2,
+                p.y + nodeHeight(graph, occurrences[0], occurrences) / 2,
+                {
+                  zoom: 1,
+                  duration: 250,
+                },
+              );
           }}
         >
           <LocateFixed size={16} />
