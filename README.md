@@ -1,112 +1,51 @@
 # Simutrans Factory Graph
 
-Simutrans Standard の `.pak` を読み込み、産業と貨物の関係を上流・下流へ辿る Windows デスクトップアプリです。Tauri 2 / Rust / React / TypeScript を使用し、アプリ内で解析・表示します。HTTPサーバは起動しません。
+Simutrans StandardのPakset・Addonを読み込み、産業と貨物のつながりを上流・下流へ辿るWindowsアプリです。産業が必要とする貨物や、それを生産する産業を確認できます。
+
+## ダウンロード・起動
+
+1. [Releases](https://github.com/takax3/simutrans-factory-graph/releases)から、Assetsの `simutrans-factory-graph.exe` をダウンロードします。
+2. 任意のフォルダに置いて起動します。インストールは不要です。
+
+Windows x64とWebView2 Runtimeが必要です。WebView2が未導入の場合は、[Microsoftの配布ページ](https://developer.microsoft.com/microsoft-edge/webview2/)からEvergreen Runtimeをインストールしてください。
+
+Pakset・Addonはご自身で用意してください。アプリには同梱していません。
 
 ## 使い方
 
-1. 配布された `simutrans-factory-graph.exe` を任意のフォルダに置いて起動します。インストールは不要です。
-2. 「フォルダを追加」またはフォルダのドロップでPakset・Addonを登録します。
-3. 必要に応じてハンドルのドラッグや上下ボタンで並べ替えます。**下のフォルダほど優先**されます。
-4. 「読み込みを開始」で解析し、診断があれば確認します。
-5. 産業／貨物タブで日本語名または内部名を検索し、起点を選びます。
-6. 起点の左側で要求貨物・生産産業（上流）、右側で生産貨物・消費産業（下流）を展開・折り畳みます。左側の枝は上流のみ、右側の枝は下流のみを辿り、起点を共有する左右2本の木として表示します。上流は操作ノードより左、下流は右に配置します。起点は赤枠と「起点」ラベルで表示します。ノード右上の「起点にする」をクリックすると、その産業・貨物を新しい起点にして左右各1段から表示し直します。初期表示では起点の左右の直近の関係を開きます。
+1. 「フォルダを追加」またはフォルダのドロップでPakset・Addonを登録します。選んだフォルダの直下にあるPAKを読み込むため、PAKが入っているフォルダを選んでください。
+2. 必要に応じてハンドルのドラッグや上下ボタンで並べ替えます。**下のフォルダほど優先**されます。ベースのPaksetを上、優先するAddonを下に置いてください。
+3. 「読み込みを開始」を押します。読み込みに問題がある場合は診断を確認します。
+4. 産業／貨物タブで日本語名または内部名を検索し、起点を選びます。
+5. 起点の左側で要求貨物・生産産業（上流）、右側で生産貨物・消費産業（下流）を展開・折り畳みます。
 
-キャンバスをドラッグして移動、ホイールまたは左下のボタンで拡大・縮小できます。「起点へ戻る」は現在の起点を中央に戻します。左下の全体表示ボタンは表示中のノードを画面内に収めます。
+## グラフの操作
 
-- 同じオブジェクトの再登場は「共有」と表示します。枝ごとに独立して展開できます。
-- 祖先と同じオブジェクトに戻る場合は「循環参照」と表示し、それ以上展開しません。
-- 表示上限は1,000ノードです。上限を超える展開は行わず、別の枝の折り畳みを案内します。
-- 読み込みに失敗しても、直前の利用可能な解析結果は保持します。読み込み元を変更したときは再読み込みしてください。
+起点は赤枠と「起点」ラベルで表示します。最初は起点の左右の直近の関係を表示し、左側の枝は上流、右側の枝は下流へ辿れます。ノード右上の「起点にする」を押すと、その産業・貨物を新しい起点にできます。
 
-PAKや翻訳ファイルは変更しません。起動中の状態はメモリに保持し、終了時に破棄します。
+キャンバスをドラッグして移動し、ホイールまたは左下のボタンで拡大・縮小できます。「起点へ戻る」は起点を中央に戻し、全体表示ボタンは表示中のノードを画面内に収めます。
 
-## 開発・ビルド
+- 「共有」は同じ産業・貨物が別の枝にも登場することを示します。枝ごとに独立して展開できます。
+- 「循環参照」は枝の途中で同じ産業・貨物に戻ることを示します。その先は展開しません。
+- 表示上限は1,000ノードです。上限に達した場合は、別の枝を折り畳んでください。
 
-必要環境：Windows x64、Node.js 24、Rust stable (MSVC)、Visual Studio C++ Build Tools / Windows SDK、WebView2 Runtime。
+## 読み込みについて
 
-```powershell
-npm ci
-npm run desktop
-```
+産業の建物画像は、最初の向き・季節・フレームの静止画で表示します。画像が読めない場合も名前とアイコンで探索できます。Addonだけで画像が表示されない場合は、ベースのPaksetも先に追加してください。
 
-`desktop` は静的UIをビルドしてTauriを起動します。開発時もHTTPサーバは使用しません。UIを変更したら再実行してください。
+読み込みに失敗しても、直前の利用可能な解析結果は保持します。フォルダの追加や順序を変更したときは、再読み込みしてください。
 
-```powershell
-npm run desktop:build
-```
+PAKや翻訳ファイルは変更しません。アプリ自身にはネットワーク機能はありません。読み込み元や表示状態は終了時に破棄されるため、次回起動時に再設定してください。
 
-成果物：
+## 対応範囲
 
-- 実行ファイル：`target/release/simutrans-factory-graph.exe`
+Simutrans Standard向けです。Extended / Experimentalは対象外です。古いPAKにも対応していますが、すべてのMakeobjバージョンで生成されたPAKとの互換性は保証していません。未対応・不正なPAKは診断に表示し、そのファイルを除外して読み込みを続けます。
 
-スタンドアロン版の実行ファイルのみを配布します。UIは実行ファイルに埋め込まれているため、`dist` フォルダの同梱は不要です。インストーラは生成しません。
+年代・生産量・立地条件の確認、画像の保存、向き・季節の切り替え、アニメーション、設定の保存、グラフ画像の出力には対応していません。
 
-実行先には WebView2 Runtime が必要です。未導入の場合は [Microsoft の配布ページ](https://developer.microsoft.com/microsoft-edge/webview2/) から Evergreen Runtime をインストールしてください。アプリ自身にはネットワーク機能はありません。
+Simutrans本体とは独立した補助ツールです。
 
-この作業環境ではRustを `.tools/cargo` / `.tools/rustup` に配置しています。`scripts/desktop.ps1` と `scripts/cargo.ps1` はローカルツールチェーンを優先します。それがない環境ではPATH上のRustを使用します。
+## 関連ドキュメント
 
-## CLI
-
-GUI非依存の同じ解析ライブラリからJSONを出力します。
-
-```powershell
-cargo run -p pak-cli -- 'C:\Simutrans\pak128.japan' 'C:\MyAddon' > graph.json
-```
-
-この作業環境のローカルRustを利用する場合：
-
-```powershell
-# PowerShellスクリプトへの引数では '--' を引用符で囲んで保持する
-./scripts/cargo.ps1 run -p pak-cli '--' 'C:\Simutrans\pak128.japan' > graph.json
-```
-
-JSONには `data`（産業・貨物辞書）、`diagnostics`、ファイル件数、`incomplete` を含みます。終了コードは利用可能なデータがあれば0、空なら1、引数／出力エラーなら2です。部分的な失敗は `incomplete` と診断で確認してください。
-
-## テスト
-
-```powershell
-./scripts/cargo.ps1 test -p pak-core
-./scripts/cargo.ps1 clippy -p pak-core -p pak-cli '--' -D warnings
-npm test
-npm run build
-```
-
-実PAKは同梱していません。検証には [pak128.Japan 120.0](http://pak128.jpn.org/souko/pak128.japan.120.0.cab)、[pak64 124.3](https://sourceforge.net/projects/simutrans/files/pak64/124-3/simupak64-124-3.zip/)、[Japan 112.0ソース](http://pak128.jpn.org/souko/sources.pak128.japan.112.0.cab) を使用します。Japanのソースは120.0と同版ではなく、代表8産業の入出力照合に使用します。
-
-```powershell
-./scripts/cargo.ps1 build -p pak-cli
-node scripts/verify-paksets.mjs '<pak128.Japan 120.0フォルダ>' '<pak64 124.3フォルダ>' '<Japan 112.0ソースフォルダ>'
-```
-
-最後のソースフォルダを指定すると、公開DATの代表8産業との照合も実行します。
-
-Windowsの実WebView2上で確認するには、先に `npm run desktop:build` を実行し、次を実行します。
-
-```powershell
-node scripts/native-smoke.mjs '<pak128.Japan 120.0フォルダ>'
-```
-
-このテストだけ一時的にWebView2のローカルデバッグ接続を有効にし、終了時にアプリを閉じます。Tauriのドロップイベントを送信してフォルダを渡し、PAK解析やRust IPCは実物を使用します。OSのフォルダ選択ダイアログ・Explorerからのドラッグ操作そのものは自動化していません。スクリーンショットは `test-results/native` に保存されます。
-
-GitHub ActionsはWindows上でRust／UIテストとスタンドアロン版のビルドを実行します。第三者PAKのダウンロードはCIに含めません。
-
-## 構成と制限
-
-- `crates/pak-core`：PAK解析・翻訳・Registry・Graph。Tauriへの依存なし。
-- `crates/pak-cli`：JSON出力用CLI。
-- `src-tauri`：バックグラウンド読み込みとIPC、Windows配布設定。
-- `ui`：読み込み元設定・起点選択・グラフ表示。
-
-[設計とデータ契約](docs/architecture.md)
-
-初期版はStandard向けです。産業の建物画像は最初の向き・季節・フレームの静止画として、グラフと起点選択の詳細に表示します。画像が読めない場合も名前とアイコンで探索できます。画像だけの警告は診断一覧に表示します。
-
-画像読み込みはStandardのBUIL v0～v12、TILE v0～v2、IMG v0～v3に対応します。旧形式の寸法・画像位置・プレイヤー色の差を読み分けます。形式ごとの合成テストで検証していますが、全過去Makeobjリリースの実生成物を網羅した保証ではありません。
-
-[Makeobj互換性と検証状況](docs/makeobj-compatibility-audit.md)
-
-FACT／GOODの未知バージョンやExtended形式は、そのPAKをエラーとして除外します。すべての歴史的PAKとの互換性は保証しません。
-
-Extended、年代・生産量・立地条件、画像の保存、向き・季節の切り替え、アニメーション、保存プロファイル、グラフ画像出力は対象外です。同一ソース内の重複採用順は本ツールのルールであり、Simutrans本体のファイル列挙順との一致は保証しません。
-
-Simutrans本体とは独立した補助ツールです。第三者Paksetや公式ソースは配布物に含めていません。
+- [開発者向けガイド](docs/development.md)：ビルド、テスト、CLI、Release作成の手順
+- [Makeobj互換性と検証状況](docs/makeobj-compatibility-audit.md)
