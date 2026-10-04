@@ -11,6 +11,8 @@ use std::{
     path::{Path, PathBuf},
 };
 
+const PAK_FILE_LIMIT: u64 = 4 * 1024 * 1024 * 1024;
+
 fn diagnostic(
     code: &str,
     message: String,
@@ -161,7 +163,7 @@ fn load_impl(
                 file: source.file.clone(),
             });
             let budget_before = material_budget;
-            match read_limited(&file, 256 * 1024 * 1024).and_then(|b| {
+            match read_limited(&file, PAK_FILE_LIMIT).and_then(|b| {
                 if images {
                     parser::parse_pak_assets(&b, &source, &mut material_budget)
                 } else {
