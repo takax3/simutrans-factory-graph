@@ -23,15 +23,7 @@
     }
   },
   "bundle": {
-    "active": true,
-    "targets": ["nsis"],
-    "shortDescription": "Simutrans 産業・貨物チェーン探索",
-    "windows": {
-      "nsis": {
-        "languages": ["Japanese"],
-        "displayLanguageSelector": false,
-        "installMode": "currentUser"
-      }
-    }
+    "active": false,
+    "shortDescription": "Simutrans 産業・貨物チェーン探索"
   }
 }

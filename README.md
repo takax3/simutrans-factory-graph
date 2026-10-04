@@ -4,7 +4,7 @@ Simutrans Standard の `.pak` を読み込み、産業と貨物の関係を上�
 
 ## 使い方
 
-1. `Simutrans Factory Graph_0.1.0_x64-setup.exe` を実行してインストールします。ビルド後の `target/release/simutrans-factory-graph.exe` を直接起動することもできます。
+1. 配布された `simutrans-factory-graph.exe` を任意のフォルダに置いて起動します。インストールは不要です。
 2. 「フォルダを追加」またはフォルダのドロップでPakset・Addonを登録します。
 3. 必要に応じてハンドルのドラッグや上下ボタンで並べ替えます。**下のフォルダほど優先**されます。
 4. 「読み込みを開始」で解析し、診断があれば確認します。
@@ -38,9 +38,10 @@ npm run desktop:build
 成果物：
 
 - 実行ファイル：`target/release/simutrans-factory-graph.exe`
-- インストーラ：`target/release/bundle/nsis/Simutrans Factory Graph_0.1.0_x64-setup.exe`
 
-インストーラは現在のユーザー向けです。WebView2未導入の環境では、インストール時にMicrosoftのランタイム取得が必要です。アプリ自身にはネットワーク機能はありません。
+スタンドアロン版の実行ファイルのみを配布します。UIは実行ファイルに埋め込まれているため、`dist` フォルダの同梱は不要です。インストーラは生成しません。
+
+実行先には WebView2 Runtime が必要です。未導入の場合は [Microsoft の配布ページ](https://developer.microsoft.com/microsoft-edge/webview2/) から Evergreen Runtime をインストールしてください。アプリ自身にはネットワーク機能はありません。
 
 この作業環境ではRustを `.tools/cargo` / `.tools/rustup` に配置しています。`scripts/desktop.ps1` と `scripts/cargo.ps1` はローカルツールチェーンを優先します。それがない環境ではPATH上のRustを使用します。
 
@@ -70,7 +71,7 @@ npm test
 npm run build
 ```
 
-実PAKは同梱していません。固定版と取得先は [PAK互換性](docs/compatibility.md) に記載しています。
+実PAKは同梱していません。検証には [pak128.Japan 120.0](http://pak128.jpn.org/souko/pak128.japan.120.0.cab)、[pak64 124.3](https://sourceforge.net/projects/simutrans/files/pak64/124-3/simupak64-124-3.zip/)、[Japan 112.0ソース](http://pak128.jpn.org/souko/sources.pak128.japan.112.0.cab) を使用します。Japanのソースは120.0と同版ではなく、代表8産業の入出力照合に使用します。
 
 ```powershell
 ./scripts/cargo.ps1 build -p pak-cli
@@ -87,7 +88,7 @@ node scripts/native-smoke.mjs '<pak128.Japan 120.0フォルダ>'
 
 このテストだけ一時的にWebView2のローカルデバッグ接続を有効にし、終了時にアプリを閉じます。Tauriのドロップイベントを送信してフォルダを渡し、PAK解析やRust IPCは実物を使用します。OSのフォルダ選択ダイアログ・Explorerからのドラッグ操作そのものは自動化していません。スクリーンショットは `test-results/native` に保存されます。
 
-GitHub ActionsはWindows上でRust／UIテストとインストーラのビルドを実行します。第三者PAKのダウンロードはCIに含めません。
+GitHub ActionsはWindows上でRust／UIテストとスタンドアロン版のビルドを実行します。第三者PAKのダウンロードはCIに含めません。
 
 ## 構成と制限
 
@@ -96,9 +97,11 @@ GitHub ActionsはWindows上でRust／UIテストとインストーラのビル�
 - `src-tauri`：バックグラウンド読み込みとIPC、Windows配布設定。
 - `ui`：読み込み元設定・起点選択・グラフ表示。
 
-[設計とデータ契約](docs/architecture.md) / [PAK互換性と検証結果](docs/compatibility.md)
+[設計とデータ契約](docs/architecture.md)
 
 初期版はStandard向けです。産業の建物画像は最初の向き・季節・フレームの静止画として、グラフと起点選択の詳細に表示します。画像が読めない場合も名前とアイコンで探索できます。画像だけの警告は診断一覧に表示します。
+
+FACT／GOODの未知バージョンやExtended形式は、そのPAKをエラーとして除外します。すべての歴史的PAKとの互換性は保証しません。
 
 Extended、年代・生産量・立地条件、画像の保存、向き・季節の切り替え、アニメーション、保存プロファイル、グラフ画像出力は対象外です。同一ソース内の重複採用順は本ツールのルールであり、Simutrans本体のファイル列挙順との一致は保証しません。
 
