@@ -81,6 +81,49 @@ fn parses_many_objects_and_goods_references_not_unrelated_xrefs() {
 }
 
 #[test]
+fn supported_factory_versions_preserve_nonempty_edges_in_all_containers() {
+    // Standard factory_reader: v0 includes an unused word after placement;
+    // v1 stores color as u16; v2+ stores color and fields as u8.
+    // In each layout supplier_count/product_count remain at offsets 12/14.
+    for compiler in [1001u32, 1002, 1003] {
+        for (v, size) in [16, 18, 18, 38, 43, 80, 81].into_iter().enumerate() {
+            for supplier_size in [6, 8] {
+                for product_version in [0u16, 1] {
+                    let mut body = vec![0; size];
+                    if v > 0 {
+                        body[..2].copy_from_slice(&(0x8000 | v as u16).to_le_bytes());
+                    }
+                    body[12..14].copy_from_slice(&2u16.to_le_bytes());
+                    body[14..16].copy_from_slice(&1u16.to_le_bytes());
+                    let mut product = vec![0; if product_version == 0 { 4 } else { 6 }];
+                    if product_version > 0 {
+                        product[..2].copy_from_slice(&0x8001u16.to_le_bytes());
+                    }
+                    let factory = node(
+                        b"FACT",
+                        &body,
+                        vec![
+                            node(b"BUIL", &[], vec![text("legacy")]),
+                            node(b"XREF", b"SMOK\0\0", vec![]),
+                            node(b"FSUP", &vec![0; supplier_size], vec![xref("grain")]),
+                            node(b"FSUP", &vec![0; supplier_size], vec![xref("water")]),
+                            node(b"FPRO", &product, vec![xref("food")]),
+                        ],
+                    );
+                    let mut data = b"compatibility\x1a".to_vec();
+                    data.extend(compiler.to_le_bytes());
+                    data.extend(node(b"ROOT", &[], vec![factory]));
+                    let objects = parse_pak(&data, &source()).unwrap();
+                    assert_eq!(objects[0].version, v as u16);
+                    assert_eq!(objects[0].inputs, ["goods:grain", "goods:water"]);
+                    assert_eq!(objects[0].outputs, ["goods:food"]);
+                }
+            }
+        }
+    }
+}
+
+#[test]
 fn validates_all_supported_body_versions() {
     for (v, size) in [16, 18, 18, 38, 43, 80, 81].into_iter().enumerate() {
         let mut body = vec![0; size];

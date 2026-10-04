@@ -55,6 +55,18 @@ fn word(b: &[u8], p: usize) -> Result<u16, String> {
             .unwrap(),
     ))
 }
+fn dword(b: &[u8], p: usize) -> Result<u32, String> {
+    Ok(u32::from_le_bytes(
+        b.get(p..p + 4)
+            .ok_or("画像情報が途中で切れています")?
+            .try_into()
+            .unwrap(),
+    ))
+}
+fn node_version(b: &[u8]) -> Result<u16, String> {
+    let v = word(b, 0)?;
+    Ok(if v & 0x8000 != 0 { v & 0x7fff } else { 0 })
+}
 fn list(node: &Node, tag: &[u8; 4]) -> Result<(), String> {
     if node.tag != tag || word(node.body, 0)? as usize != node.children.len() {
         return Err("画像リストの種別または要素数が不正です".into());
@@ -74,13 +86,26 @@ pub(crate) fn outside_width(node: &Node) -> Result<u16, String> {
     Ok(w as u16)
 }
 pub(crate) fn extract_building(node: &Node, budget: &mut usize) -> Result<Vec<Sprite>, String> {
-    let v = word(node.body, 0)?;
-    if v & 0x8000 == 0 || ![5, 6, 7, 8, 9, 10].contains(&(v & 0x7fff)) {
-        return Err(format!("未対応の建物画像形式 BUIL v{}", v & 0x7fff));
+    let v = node_version(node.body)?;
+    if v > 12 {
+        return Err(format!("未対応の建物画像形式 BUIL v{v}"));
     }
-    let width = word(node.body, 10)? as usize;
-    let height = word(node.body, 12)? as usize;
-    let layouts = *node.body.get(14).ok_or("建物画像情報が短すぎます")? as usize;
+    // v0 has 32-bit fields; v12 removes the old building-type byte.
+    let offset = match v {
+        0 => 16,
+        12 => 9,
+        _ => 10,
+    };
+    let width = word(node.body, offset)? as usize;
+    let height = word(node.body, offset + 2)? as usize;
+    let layouts = if v == 0 {
+        dword(node.body, 20)? as usize
+    } else {
+        *node
+            .body
+            .get(offset + 4)
+            .ok_or("建物画像情報が短すぎます")? as usize
+    };
     let area = width
         .checked_mul(height)
         .ok_or("建物タイル数が範囲外です")?;
@@ -90,10 +115,13 @@ pub(crate) fn extract_building(node: &Node, budget: &mut usize) -> Result<Vec<Sp
     let mut selected = Vec::new();
     let mut bytes = 0usize;
     for (index, tile) in node.children[2..2 + area].iter().enumerate() {
+        let tile_v = node_version(tile.body)?;
+        // Unversioned TILE stores a four-byte pointer before phases/index.
+        let index_offset = if tile_v == 0 { 6 } else { 4 };
         if tile.tag != b"TILE"
-            || word(tile.body, 0)? != 0x8002
-            || word(tile.body, 4)? as usize != index
-            || tile.body.get(6).copied().unwrap_or(0) == 0
+            || tile_v > 2
+            || word(tile.body, index_offset)? as usize != index
+            || (tile_v == 2 && tile.body.get(6).copied().unwrap_or(0) == 0)
         {
             return Err("未対応または不正な建物TILEです".into());
         }
@@ -138,13 +166,28 @@ pub(crate) fn extract_building(node: &Node, budget: &mut usize) -> Result<Vec<Sp
 
 fn geometry(b: &[u8]) -> Result<(i32, i32, u32, u32, usize), String> {
     let v = *b.get(6).ok_or("画像ヘッダが短すぎます")?;
-    let x = word(b, 0)? as i16 as i32;
-    let y = word(b, 2)? as i16 as i32;
+    let x = if v == 0 {
+        b[0] as i32
+    } else {
+        word(b, 0)? as i16 as i32
+    };
+    let y = if v == 0 {
+        b[2] as i32
+    } else {
+        word(b, 2)? as i16 as i32
+    };
     let (w, h, start) = match v {
-        1 => {
+        0 => {
+            let len = dword(b, 4)? as usize;
+            if b.len() != 12 + len * 2 {
+                return Err("画像v0のデータ長が不正です".into());
+            }
+            (b[1] as u32, b[3] as u32, 12)
+        }
+        1 | 2 => {
             let len = word(b, 7)? as usize;
             if b.len() != 10 + len * 2 {
-                return Err("画像v1のデータ長が不正です".into());
+                return Err(format!("画像v{v}のデータ長が不正です"));
             }
             (b[4] as u32, b[5] as u32, 10)
         }
@@ -274,7 +317,7 @@ fn decode(b: &[u8]) -> Result<(i32, i32, RgbaImage), String> {
     if pos != b.len() {
         return Err("RLEの行数またはデータ長が不正です".into());
     }
-    let left = if b[6] == 1 {
+    let left = if b[6] < 2 {
         *rows.iter().min().unwrap() as u32
     } else {
         0
@@ -292,7 +335,12 @@ fn decode(b: &[u8]) -> Result<(i32, i32, RgbaImage), String> {
                 return Err("RLEが画像の行幅を超えています".into());
             }
             for _ in 0..len {
-                image.put_pixel(column, row, color(word(b, pos)?, run & 0x8000 != 0)?);
+                let mut value = word(b, pos)?;
+                // v0 predates the player-color index shift in Standard's reader.
+                if b[6] == 0 && (0x8000..=0x800f).contains(&value) {
+                    value += 1;
+                }
+                image.put_pixel(column, row, color(value, run & 0x8000 != 0)?);
                 column += 1;
                 pos += 2;
             }
@@ -473,6 +521,31 @@ mod tests {
             b.extend(word.to_le_bytes());
         }
         b
+    }
+    #[test]
+    fn decodes_legacy_image_headers_cropping_and_player_color_shift() {
+        let words = [5u16, 1, 0x8000, 0];
+        let mut legacy = vec![9, 1, 7, 1, 4, 0, 0, 0, 0, 0, 1, 0];
+        for w in words {
+            legacy.extend(w.to_le_bytes());
+        }
+        let (x, y, img) = decode(&legacy).unwrap();
+        assert_eq!((x, y), (9, 7));
+        assert_eq!(*img.get_pixel(0, 0), color(0x8001, false).unwrap());
+        for len in 0..legacy.len() {
+            assert!(decode(&legacy[..len]).is_err());
+        }
+        let mut v2 = body(1, 6, 1, &[5, 1, 0x8000, 0]);
+        v2[6] = 2;
+        let (_, _, img) = decode(&v2).unwrap();
+        assert_eq!(img.get_pixel(0, 0)[3], 0);
+        assert_eq!(*img.get_pixel(5, 0), color(0x8000, false).unwrap());
+        let mut v1 = v2.clone();
+        v1[6] = 1;
+        let (_, _, img) = decode(&v1).unwrap();
+        assert_eq!(*img.get_pixel(0, 0), color(0x8000, false).unwrap());
+        v2[7] = 99;
+        assert!(decode(&v2).is_err());
     }
     #[test]
     fn decodes_runs_offsets_and_legacy_empty_tail() {
