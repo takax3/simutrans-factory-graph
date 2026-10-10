@@ -2139,7 +2139,7 @@ checksum = "04744f49eae99ab78e0d5c0b603ab218f515ea8cfe5a456d7629ad883a3b6e7d"
 
 [[package]]
 name = "pak-cli"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "pak-core",
  "serde_json",
@@ -2147,7 +2147,7 @@ dependencies = [
 
 [[package]]
 name = "pak-core"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "image",
  "serde",
@@ -2892,7 +2892,7 @@ checksum = "3a219298ac11a56ea9a6d2120044824d6f01aeb034955e7af7bc16858527deea"
 
 [[package]]
 name = "simutrans-factory-graph"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "base64 0.22.1",
  "pak-core",

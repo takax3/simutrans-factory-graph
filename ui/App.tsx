@@ -307,7 +307,7 @@ export default function App() {
             </div>
           ))}
         </nav>
-        <span className="version">STANDARD / v0.1</span>
+        <span className="version">STANDARD / v0.2.0</span>
       </header>
 
       {screen === 'sources' && (
