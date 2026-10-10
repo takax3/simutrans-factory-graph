@@ -672,6 +672,25 @@ progress {
 }
 .object-row > svg {
   color: #aab5c3;
+  flex-shrink: 0;
+}
+.object-row strong {
+  overflow-wrap: anywhere;
+}
+.goods-relations {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.goods-relations > span {
+  white-space: nowrap;
+}
+.goods-relations .missing-relation {
+  color: #99620a;
+  font-weight: 600;
 }
 .object-row.selected {
   background: #edf3fe;

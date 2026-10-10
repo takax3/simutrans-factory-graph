@@ -2,7 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import App from './App';
 import * as api from './api';
-import { testReport } from './fixtures';
+import { goods, testReport } from './fixtures';
 import type { LoadReport, Progress } from './types';
 
 vi.mock('./api', () => ({
@@ -37,6 +37,44 @@ async function addAndLoad() {
 }
 
 describe('application flow', () => {
+  it('shows goods relation counts and highlights each missing side while keeping goods selectable', async () => {
+    const report = testReport();
+    const extraGoods = [
+      goods('no-producer', [], ['store']),
+      goods('no-consumer', ['farm'], []),
+      goods('isolated', [], []),
+      goods('multiple', ['farm', 'plant'], ['store', 'plant']),
+    ];
+    for (const good of extraGoods) report.data.goods[good.id] = good;
+    vi.mocked(api.loadSources).mockResolvedValue(report);
+    render(<App />);
+    await addAndLoad();
+    fireEvent.click(screen.getByRole('button', { name: '起点を選択する' }));
+    expect(document.querySelector('.goods-relations')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('tab', { name: /貨物/ }));
+    for (const [name, producers, consumers] of [
+      ['小麦', 1, 1],
+      ['no-producer', 0, 1],
+      ['no-consumer', 1, 0],
+      ['isolated', 0, 0],
+      ['multiple', 2, 2],
+    ] as const) {
+      const row = screen.getByRole('button', { name: new RegExp(name) });
+      const producerCount = within(row).getByText(`生産元 ${producers}`);
+      const consumerCount = within(row).getByText(`消費先 ${consumers}`);
+      expect(producerCount.classList.contains('missing-relation')).toBe(producers === 0);
+      expect(consumerCount.classList.contains('missing-relation')).toBe(consumers === 0);
+    }
+    fireEvent.click(screen.getByRole('button', { name: /multiple/ }));
+    expect(screen.getByText('生産する産業').querySelector('span')).toHaveTextContent('2');
+    expect(screen.getByText('消費する産業').querySelector('span')).toHaveTextContent('2');
+    fireEvent.change(screen.getByRole('textbox', { name: '名前で検索' }), {
+      target: { value: 'isolated' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /isolated/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'この貨物から表示' }));
+    expect(screen.getByText('探索中:goods:isolated')).toBeInTheDocument();
+  });
   it('loads, searches, previews and returns from graph to source settings', async () => {
     render(<App />);
     expect(screen.getByRole('button', { name: '読み込みを開始' })).toBeDisabled();

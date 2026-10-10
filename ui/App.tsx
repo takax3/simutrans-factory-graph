@@ -579,11 +579,36 @@ export default function App() {
                           image={report.previews?.[object.id]}
                           name={object.display_name}
                         />
-                      ) : <Box size={18} />}
+                      ) : (
+                        <Box size={18} />
+                      )}
                     </span>
                     <span>
                       <strong>{object.display_name}</strong>
                       <small>{object.internal_name}</small>
+                      {tab === 'goods' && (
+                        <span className="goods-relations">
+                          <span
+                            className={
+                              graph.goods[object.id].producers.length === 0
+                                ? 'missing-relation'
+                                : undefined
+                            }
+                          >
+                            生産元 {graph.goods[object.id].producers.length}
+                          </span>
+                          <span aria-hidden="true">/</span>
+                          <span
+                            className={
+                              graph.goods[object.id].consumers.length === 0
+                                ? 'missing-relation'
+                                : undefined
+                            }
+                          >
+                            消費先 {graph.goods[object.id].consumers.length}
+                          </span>
+                        </span>
+                      )}
                     </span>
                     <ChevronRight size={16} />
                   </button>
