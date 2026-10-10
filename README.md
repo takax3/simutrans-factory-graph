@@ -4,7 +4,7 @@ Simutrans StandardのPakset・Addonを読み込み、産業と貨物のつなが
 
 ## ダウンロード・起動
 
-1. [Releases](https://github.com/takax3/simutrans-factory-graph/releases)から、Assetsの `simutrans-factory-graph.exe` をダウンロードします。
+1. [Releases](https://github.com/takax3/simutrans-factory-graph/releases)から、Assetsの `simutrans-factory-graph-v0_2_0.exe` など、バージョン名を含むexeをダウンロードします。
 2. 任意のフォルダに置いて起動します。インストールは不要です。
 
 Windows x64とWebView2 Runtimeが必要です。WebView2が未導入の場合は、[Microsoftの配布ページ](https://developer.microsoft.com/microsoft-edge/webview2/)からEvergreen Runtimeをインストールしてください。

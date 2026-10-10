@@ -50,6 +50,7 @@ jobs:
       group: draft-release-${{ github.ref }}
       cancel-in-progress: false
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
           name: windows-x64-standalone
@@ -64,18 +65,15 @@ jobs:
           set -euo pipefail
           asset='release-assets/simutrans-factory-graph.exe'
           test -s "$asset"
-          cat > release-notes.md <<'EOF'
-          Simutrans Standardの産業・貨物の関係を探索するWindowsアプリです。
-
-          Assetsの `simutrans-factory-graph.exe` をダウンロードして起動してください。
-          インストール不要です。WebView2 Runtimeが必要です。
-
-          画像読み込みはBUIL v0～v12、TILE v0～v2、IMG v0～v3に対応します。
-          Extended / Experimentalは対象外です。
-          全過去Makeobjリリースの生成物との互換性は保証していません。
-
-          公開前に、このバージョンの変更内容を追記してください。
-          EOF
+          version_name="${RELEASE_TAG//./_}"
+          named_asset="release-assets/simutrans-factory-graph-${version_name}.exe"
+          mv "$asset" "$named_asset"
+          asset="$named_asset"
+          notes="docs/releases/${RELEASE_TAG}.md"
+          if [ ! -s "$notes" ]; then
+            echo "::error::Missing release notes: $notes"
+            exit 1
+          fi
           if draft=$(gh release view "$RELEASE_TAG" --json isDraft --jq '.isDraft'); then
             if [ "$draft" != 'true' ]; then
               echo "::error::Release $RELEASE_TAG is already published; assets will not be changed."
@@ -86,5 +84,5 @@ jobs:
             gh release create "$RELEASE_TAG" "$asset" \
               --verify-tag --draft \
               --title "Simutrans Factory Graph $RELEASE_TAG" \
-              --notes-file release-notes.md
+              --notes-file "$notes"
           fi

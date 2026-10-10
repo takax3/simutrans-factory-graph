@@ -76,10 +76,11 @@ GitHub ActionsはWindows上でRust／UIテストとスタンドアロン版の�
 
 ## Releaseの下書き作成
 
-`v`で始まるタグをpushすると、GitHub Actionsがテスト・Windowsビルドを実行し、`simutrans-factory-graph.exe` を添付した下書きReleaseを作成します。自動公開は行いません。追加のトークン設定は不要で、Releaseを扱うジョブだけに `contents: write` を付与しています。
+`v`で始まるタグをpushすると、GitHub Actionsがテスト・Windowsビルドを実行し、`simutrans-factory-graph-v0_2_0.exe` のようにバージョンを含むexeを添付した下書きReleaseを作成します。自動公開は行いません。追加のトークン設定は不要で、Releaseを扱うジョブだけに `contents: write` を付与しています。
 
-1. `package.json`、`src-tauri/tauri.conf.json`、ルートの `Cargo.toml` のバージョンを揃え、依存ロックファイルも更新してコミットします。タグから先頭の `v` を除いた値と3ファイルのバージョンが一致しなければビルドは失敗します。
-2. 設定を含むコミットをpushしてから、そのコミットにタグを作成・pushします。例えばバージョンを `0.1.1` に更新した場合：
+1. `docs/releases/<タグ名>.md` にそのバージョンの変更点だけを記載します。使い方・検証結果はリリースノートに含めません。ノートがない場合、下書きReleaseの作成は失敗します。
+2. `package.json`、`src-tauri/tauri.conf.json`、ルートの `Cargo.toml` のバージョンを揃え、依存ロックファイルも更新してコミットします。タグから先頭の `v` を除いた値と3ファイルのバージョンが一致しなければビルドは失敗します。
+3. 設定を含むコミットをpushしてから、そのコミットにタグを作成・pushします。例えばバージョンを `0.1.1` に更新した場合：
 
    ```powershell
    git push origin main
@@ -87,7 +88,7 @@ GitHub ActionsはWindows上でRust／UIテストとスタンドアロン版の�
    git push origin v0.1.1
    ```
 
-3. Actionsの「Windows checks」が成功したら、Releasesで下書きを開き、変更内容・添付exeを確認して「Publish release」を押します。
+4. Actionsの「Windows checks」が成功したら、Releasesで下書きを開き、変更内容・添付exeを確認して「Publish release」を押します。
 
 同じタグのワークフローを再実行すると、既存の下書きの説明を保持してexeを差し替えます。同じタグのReleaseが公開済みの場合はエラーで停止します。既存タグに対する設定追加だけでは自動実行されないため、次のリリースはこの設定を含む新しいタグで作成してください。
 
