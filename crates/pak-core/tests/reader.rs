@@ -316,3 +316,75 @@ fn graph_supports_multiple_producers_and_cycles() {
     assert_eq!(graph.goods["goods:a"].producers.len(), 3);
     assert_eq!(graph.goods["goods:b"].consumers, ["industry:two"]);
 }
+
+#[test]
+fn reads_categories_in_every_goods_version() {
+    for (version, size) in [4, 8, 10, 10, 16].into_iter().enumerate() {
+        for category in [0u8, 3, 255] {
+            let mut body = vec![0; size];
+            if version > 0 {
+                body[..2].copy_from_slice(&(0x8000 | version as u16).to_le_bytes());
+            }
+            let offset = match version {
+                0 => 2,
+                4 => 10,
+                _ => 4,
+            };
+            body[offset] = category;
+            let objects = parse_pak(
+                &pak(vec![node(b"GOOD", &body, vec![text("cargo")])]),
+                &source(),
+            )
+            .unwrap();
+            assert_eq!(objects[0].category_id, Some(category));
+        }
+    }
+}
+
+#[test]
+fn categories_follow_winning_definitions_and_translation_order() {
+    let tmp = tempfile::tempdir().unwrap();
+    let base = tmp.path().join("base");
+    let addon = tmp.path().join("addon");
+    for path in [&base, &addon] {
+        fs::create_dir_all(path.join("text")).unwrap();
+    }
+    let categorized = |name: &str, category: u8| {
+        let mut body = vec![0; 10];
+        body[..2].copy_from_slice(&0x8003u16.to_le_bytes());
+        body[4] = category;
+        node(b"GOOD", &body, vec![text(name)])
+    };
+    fs::write(
+        base.join("goods.pak"),
+        pak(vec![
+            categorized("cargo", 1),
+            categorized("fallback", 99),
+            good("special"),
+            factory("plant", &["missing"], &[]),
+        ]),
+    )
+    .unwrap();
+    fs::write(addon.join("goods.pak"), pak(vec![categorized("cargo", 3)])).unwrap();
+    fs::write(base.join("text/ja.tab"), "CATEGORY_03\nパレット\n").unwrap();
+    fs::write(addon.join("text/ja.tab"), "CATEGORY_03\nパレット輸送貨物\n").unwrap();
+    let report = load_sources(&[base.clone(), addon]);
+    let graph = build_graph(&report.data);
+    assert_eq!(graph.goods["goods:cargo"].category_id, Some(3));
+    assert_eq!(
+        graph.goods["goods:cargo"].category_name.as_deref(),
+        Some("パレット輸送貨物")
+    );
+    assert_eq!(graph.goods["goods:cargo"].overridden.len(), 1);
+    assert_eq!(graph.goods["goods:fallback"].category_id, Some(99));
+    assert_eq!(graph.goods["goods:fallback"].category_name, None);
+    assert_eq!(graph.goods["goods:special"].category_id, Some(0));
+    assert_eq!(graph.goods["goods:missing"].category_id, None);
+    let base_graph = build_graph(&load_sources(&[base]).data);
+    assert_eq!(base_graph.goods["goods:cargo"].category_id, Some(1));
+    let mut legacy = serde_json::to_value(&graph.goods["goods:cargo"]).unwrap();
+    legacy.as_object_mut().unwrap().remove("category_id");
+    legacy.as_object_mut().unwrap().remove("category_name");
+    let legacy: pak_core::model::Goods = serde_json::from_value(legacy).unwrap();
+    assert_eq!(legacy.category_id, None);
+}

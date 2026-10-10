@@ -227,6 +227,13 @@ fn load_impl(
         if let Some(name) = translations.get(&obj.internal_name) {
             obj.display_name = name.clone();
         }
+        obj.category_name = obj.category_id.and_then(|id| {
+            if id == 0 {
+                None
+            } else {
+                translations.get(&format!("CATEGORY_{id:02}")).cloned()
+            }
+        });
         obj.inputs.sort();
         obj.inputs.dedup();
         obj.outputs.sort();
@@ -310,6 +317,8 @@ pub fn build_graph(registry: &PakRegistry) -> IndustryGraph {
                     id: obj.id.clone(),
                     internal_name: obj.internal_name.clone(),
                     display_name: obj.display_name.clone(),
+                    category_id: obj.category_id,
+                    category_name: obj.category_name.clone(),
                     producers: Vec::new(),
                     consumers: Vec::new(),
                     source: Some(obj.source.clone()),
@@ -341,6 +350,8 @@ pub fn build_graph(registry: &PakRegistry) -> IndustryGraph {
                         id: id.clone(),
                         internal_name: name.clone(),
                         display_name: name,
+                        category_id: None,
+                        category_name: None,
                         producers: Vec::new(),
                         consumers: Vec::new(),
                         source: None,

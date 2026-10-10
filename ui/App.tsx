@@ -22,6 +22,7 @@ import {
 import * as api from './api';
 import type { BaseObject, IndustryGraph, LoadReport, Progress, PreviewImage } from './types';
 import IndustryImage from './IndustryImage';
+import { categoryKey, categoryLabel, categoryOptions } from './categories';
 import { lookup, searchObjects } from './exploration';
 import GraphView from './GraphView';
 
@@ -105,6 +106,7 @@ function ObjectPreview({
           detail
         />
       )}
+      {good && <p className="goods-category">カテゴリ: {categoryLabel(good)}</p>}
       {good?.unresolved && <p className="notice">定義が見つからない貨物です。</p>}
       {rows.map(([label, ids]) => (
         <section className="relation-group" key={label}>
@@ -160,6 +162,7 @@ export default function App() {
   const [failedReload, setFailedReload] = useState(false);
   const [tab, setTab] = useState<'industry' | 'goods'>('industry');
   const [query, setQuery] = useState('');
+  const [category, setCategory] = useState('all');
   const [selected, setSelected] = useState('');
   const [root, setRoot] = useState('');
   const [dragIndex, setDragIndex] = useState<number | null>(null);
@@ -249,6 +252,7 @@ export default function App() {
         setRoot('');
         setSelected('');
         setQuery('');
+        setCategory('all');
       } else {
         setError('利用できる産業・貨物がありません。読み込み元と診断を確認してください。');
         setFailedReload(true);
@@ -263,9 +267,15 @@ export default function App() {
   }
 
   const graph = report?.data;
+  const categories = categoryOptions(Object.values(graph?.goods ?? {}));
   const objects = graph
     ? searchObjects<BaseObject>(
-        Object.values(tab === 'industry' ? graph.industries : graph.goods),
+        Object.values(tab === 'industry' ? graph.industries : graph.goods).filter(
+          (object) =>
+            tab === 'industry' ||
+            category === 'all' ||
+            categoryKey(graph.goods[object.id]) === category,
+        ),
         query,
       )
     : [];
@@ -562,6 +572,19 @@ export default function App() {
                   </button>
                 )}
               </div>
+              {tab === 'goods' && (
+                <label className="category-filter">
+                  カテゴリ
+                  <select value={category} onChange={(e) => setCategory(e.target.value)}>
+                    <option value="all">すべて</option>
+                    {categories.map(({ key, label }) => (
+                      <option key={key} value={key}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
               <div className="list-caption">
                 {objects.length} 件の{tab === 'industry' ? '産業' : '貨物'}
                 <span>名前順</span>
@@ -586,6 +609,11 @@ export default function App() {
                     <span>
                       <strong>{object.display_name}</strong>
                       <small>{object.internal_name}</small>
+                      {tab === 'goods' && (
+                        <span className="goods-category">
+                          {categoryLabel(graph.goods[object.id])}
+                        </span>
+                      )}
                       {tab === 'goods' && (
                         <span className="goods-relations">
                           <span
@@ -617,7 +645,7 @@ export default function App() {
                   <div className="empty-state">
                     <Search size={26} />
                     <h3>一致する項目がありません</h3>
-                    <p>別の名前で検索してください。</p>
+                    <p>検索条件やカテゴリを変更してください。</p>
                   </div>
                 )}
               </div>

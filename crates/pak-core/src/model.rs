@@ -19,6 +19,10 @@ pub struct Diagnostic {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Object {
+    #[serde(default)]
+    pub category_id: Option<u8>,
+    #[serde(default)]
+    pub category_name: Option<String>,
     pub id: String,
     pub internal_name: String,
     pub display_name: String,
@@ -59,6 +63,10 @@ pub struct Industry {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Goods {
+    #[serde(default)]
+    pub category_id: Option<u8>,
+    #[serde(default)]
+    pub category_name: Option<String>,
     pub id: String,
     pub internal_name: String,
     pub display_name: String,

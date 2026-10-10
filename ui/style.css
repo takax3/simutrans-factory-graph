@@ -1263,3 +1263,39 @@ progress {
   opacity: 0.55;
   cursor: default;
 }
+
+.category-filter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0 20px 12px;
+  font-size: 12px;
+}
+.category-filter select {
+  flex: 1;
+  min-width: 0;
+  max-width: 100%;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: white;
+  color: inherit;
+}
+.goods-category {
+  display: block;
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.node-category {
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 16px;
+}
+.node-category > span {
+  display: block;
+  white-space: pre;
+}

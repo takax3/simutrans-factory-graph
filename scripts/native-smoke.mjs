@@ -2,7 +2,8 @@
 // A Tauri drag-drop event supplies fixture paths; parsing and IPC are not mocked.
 import { chromium, expect } from '@playwright/test';
 import { spawn } from 'node:child_process';
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, writeFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import net from 'node:net';
 
@@ -26,6 +27,10 @@ const child = spawn(executable, [], {
   stdio: 'ignore',
   windowsHide: true,
 });
+const categoryAddon = mkdtempSync(resolve(tmpdir(), 'factory-category-'));
+const longCategory = 'パレット輸送貨物の非常に長いカテゴリ名称'.repeat(4);
+mkdirSync(resolve(categoryAddon, 'text'));
+writeFileSync(resolve(categoryAddon, 'text/ja.tab'), `CATEGORY_03\n${longCategory}\n`);
 let browser;
 const errors = [];
 try {
@@ -98,9 +103,22 @@ try {
   await page.getByRole('button', { name: '起点へ戻る' }).click();
   await page.getByRole('button', { name: '起点変更', exact: true }).click();
   await page.getByRole('tab', { name: /貨物/ }).click();
+  await page.getByRole('textbox', { name: '名前で検索' }).fill('');
+  const categorySelect = page.getByRole('combobox', { name: 'カテゴリ' });
+  await expect(categorySelect).toHaveValue('all');
+  await categorySelect.selectOption('3');
+  await expect(page.locator('.object-row').first().locator('.goods-category')).toHaveText(
+    'パレット輸送貨物',
+  );
+  await categorySelect.selectOption('all');
   await page.getByRole('textbox', { name: '名前で検索' }).fill('Bucher3');
+  await expect(page.locator('.object-row .goods-category')).toHaveText('パレット輸送貨物');
   await page.locator('.object-row').click();
+  await expect(page.locator('.preview-panel .goods-category')).toHaveText(
+    'カテゴリ: パレット輸送貨物',
+  );
   await page.getByRole('button', { name: 'この貨物から表示' }).click();
+  await expect(page.locator('[data-id="root"] .node-category')).toHaveText('パレット輸送貨物');
   await page
     .locator('.react-flow__node')
     .filter({ hasText: 'Bucher43' })
@@ -203,6 +221,43 @@ try {
   await expect(rootNode.getByRole('status')).toHaveText('内部名をコピーしました');
   expect(await page.evaluate(() => window.copiedNames)).toEqual(['弁当工場', 'bento_plant']);
   await page.screenshot({ path: output + '/07-change-root.png' });
+  await page.getByRole('button', { name: '読み込み設定' }).click();
+  await page.evaluate(
+    (addon) =>
+      window.__TAURI_INTERNALS__.invoke('plugin:event|emit', {
+        event: 'tauri://drag-drop',
+        payload: { paths: [addon], position: { x: 300, y: 400 } },
+      }),
+    categoryAddon,
+  );
+  await expect(page.locator('.source-row')).toHaveCount(2);
+  await page.getByRole('button', { name: '読み込みを開始' }).click();
+  await expect(page.getByText('読み込みが完了しました')).toBeVisible({ timeout: 30000 });
+  await page.getByRole('button', { name: '起点を選択する' }).click();
+  await page.getByRole('tab', { name: /貨物/ }).click();
+  await page.getByRole('textbox', { name: '名前で検索' }).fill('Bucher3');
+  await page.getByRole('combobox', { name: 'カテゴリ' }).selectOption('3');
+  await page.setViewportSize({ width: 850, height: 700 });
+  await expect(page.locator('.object-row .goods-category')).toHaveText(longCategory);
+  await page.locator('.object-row').click();
+  const categoryFits = await page
+    .locator('.object-row .goods-category')
+    .evaluate((el) => el.scrollWidth <= el.clientWidth);
+  expect(categoryFits).toBe(true);
+  await page.screenshot({ path: output + '/08-category-narrow.png' });
+  await page.getByRole('button', { name: 'この貨物から表示' }).click();
+  await expect(page.locator('[data-id="root"] .node-category')).toHaveText(longCategory);
+  const contained = await page.locator('[data-id="root"] .node-category').evaluate((el) => {
+    const category = el.getBoundingClientRect();
+    const node = el.closest('.entity-node').getBoundingClientRect();
+    const bottom = el
+      .closest('.entity-node')
+      .querySelector('.entity-bottom')
+      .getBoundingClientRect();
+    return category.right <= node.right && category.bottom <= bottom.top;
+  });
+  expect(contained).toBe(true);
+  await page.screenshot({ path: output + '/09-category-long-graph.png' });
   assertNoErrors();
   const invalidImages = await page
     .locator('.industry-image img')
@@ -217,6 +272,9 @@ try {
 } finally {
   if (browser) await browser.close();
   child.kill();
+  if (!categoryAddon.startsWith(resolve(tmpdir(), 'factory-category-')))
+    throw new Error('Unexpected temporary directory');
+  rmSync(categoryAddon, { recursive: true, force: true });
 }
 function assertNoErrors() {
   if (errors.length) throw new Error(errors.join('\n'));

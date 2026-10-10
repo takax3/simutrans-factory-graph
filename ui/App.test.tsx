@@ -215,3 +215,61 @@ describe('application flow', () => {
     expect(api.normalizeSources).toHaveBeenCalledTimes(1);
   });
 });
+
+it('filters goods by category alongside names, preserves selection and resets on reload', async () => {
+  const report = testReport();
+  Object.assign(report.data.goods['goods:grain'], {
+    category_id: 1,
+    category_name: 'ばら積み貨物',
+  });
+  Object.assign(report.data.goods['goods:food'], {
+    category_id: 3,
+    category_name: 'パレット輸送貨物',
+  });
+  Object.assign(report.data.goods['goods:milk'], { category_id: 0 });
+  report.data.goods['goods:unknown'] = goods('unknown');
+  report.data.goods['goods:fallback'] = { ...goods('fallback'), category_id: 9 };
+  vi.mocked(api.loadSources).mockResolvedValue(report);
+  render(<App />);
+  await addAndLoad();
+  fireEvent.click(screen.getByRole('button', { name: '起点を選択する' }));
+  expect(screen.queryByRole('combobox', { name: 'カテゴリ' })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('tab', { name: /貨物/ }));
+  const select = screen.getByRole('combobox', { name: 'カテゴリ' });
+  expect(
+    within(select)
+      .getAllByRole('option')
+      .map((o) => o.textContent),
+  ).toEqual([
+    'すべて',
+    'ばら積み貨物',
+    'パレット輸送貨物',
+    'カテゴリ 9',
+    '専用貨物',
+    'カテゴリ不明',
+  ]);
+  fireEvent.click(screen.getByRole('button', { name: /小麦.*grain/ }));
+  expect(screen.getByText('カテゴリ: ばら積み貨物')).toBeInTheDocument();
+  fireEvent.change(select, { target: { value: '3' } });
+  expect(document.querySelectorAll('.object-row')).toHaveLength(1);
+  expect(screen.getByText('カテゴリ: ばら積み貨物')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'この貨物から表示' })).toBeEnabled();
+  fireEvent.change(screen.getByRole('textbox', { name: '名前で検索' }), {
+    target: { value: '小麦' },
+  });
+  expect(screen.getByText('一致する項目がありません')).toBeInTheDocument();
+  fireEvent.change(screen.getByRole('textbox', { name: '名前で検索' }), {
+    target: { value: 'food' },
+  });
+  expect(document.querySelectorAll('.object-row')).toHaveLength(1);
+  fireEvent.click(screen.getByRole('tab', { name: /産業/ }));
+  expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('tab', { name: /貨物/ }));
+  expect(screen.getByRole('combobox')).toHaveValue('3');
+  fireEvent.click(screen.getByRole('button', { name: '読み込み設定' }));
+  fireEvent.click(screen.getByRole('button', { name: '読み込みを開始' }));
+  await screen.findByText('読み込みが完了しました');
+  fireEvent.click(screen.getByRole('button', { name: '起点を選択する' }));
+  expect(screen.getByRole('combobox')).toHaveValue('all');
+  expect(document.querySelectorAll('.object-row')).toHaveLength(5);
+});

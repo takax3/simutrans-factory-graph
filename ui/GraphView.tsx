@@ -26,6 +26,7 @@ import {
 import '@xyflow/react/dist/style.css';
 import type { IndustryGraph, PreviewImage } from './types';
 import IndustryImage from './IndustryImage';
+import { categoryLabel, categoryLines } from './categories';
 import {
   dependencies,
   expansionDirections,
@@ -43,6 +44,7 @@ type GraphNode = Node<{
   label: string;
   image?: PreviewImage;
   internalName: string;
+  category: string[];
   industry: boolean;
   cycle: boolean;
   shared: boolean;
@@ -162,6 +164,13 @@ function EntityNode({ data }: NodeProps<GraphNode>) {
           </button>
           <small title={data.internalName}>{data.internalName}</small>
         </div>
+        {!data.industry && (
+          <div className="node-category">
+            {data.category.map((line, i) => (
+              <span key={i}>{line}</span>
+            ))}
+          </div>
+        )}
         <span className="copy-status" role="status">
           {copyStatus}
         </span>
@@ -202,7 +211,9 @@ function canFilterBranch(graph: IndustryGraph, node: Occurrence, occurrences: Oc
 }
 function nodeHeight(graph: IndustryGraph, node: Occurrence, occurrences: Occurrence[]) {
   return (
-    (graph.industries[node.objectId] ? 195 : 126) +
+    (graph.industries[node.objectId]
+      ? 195
+      : 132 + categoryLines(categoryLabel(graph.goods[node.objectId])).length * 16) +
     (canFilterBranch(graph, node, occurrences) ? 24 : 0) +
     (node.cycle ? 20 : 0) +
     (graph.goods[node.objectId]?.unresolved ? 20 : 0) +
@@ -313,6 +324,9 @@ function Explorer({ graph, root, onRootChange, previews }: GraphViewProps) {
         label: object.display_name,
         image: previews?.[n.objectId],
         internalName: object.internal_name,
+        category: graph.goods[n.objectId]
+          ? categoryLines(categoryLabel(graph.goods[n.objectId]))
+          : [],
         industry: !!graph.industries[n.objectId],
         cycle: n.cycle,
         shared: n.shared,

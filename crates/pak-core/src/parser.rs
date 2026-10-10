@@ -222,6 +222,18 @@ fn parse_impl(
                 internal_name,
                 kind: kind.into(),
                 version: v,
+                category_id: if kind == "goods" {
+                    Some(match v {
+                        0 => u16_at(node.body, 2)? as u8,
+                        1 | 2 => u16_at(node.body, 4)? as u8,
+                        3 => node.body[4],
+                        4 => node.body[10],
+                        _ => unreachable!(),
+                    })
+                } else {
+                    None
+                },
+                category_name: None,
                 inputs,
                 outputs,
                 source,

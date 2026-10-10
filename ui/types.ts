@@ -15,6 +15,8 @@ export interface Industry extends BaseObject {
   outputs: string[];
 }
 export interface Goods extends BaseObject {
+  category_id?: number | null;
+  category_name?: string | null;
   producers: string[];
   consumers: string[];
   unresolved: boolean;
